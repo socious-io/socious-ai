@@ -4,7 +4,7 @@ from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
 import re
-from schema import Schema, And
+from schema import Schema, And, Use
 
 # Download necessary NLTK data
 nltk.download('punkt')
@@ -19,8 +19,8 @@ class ImpactDetector:
     JOB_SCHEMA = Schema({
         'title': And(str, len),
         'description':  And(str, len),
-        # 'org_name': Or(None, And(str, len)),
-        # 'org_description':  Or(None, And(str, len)),
+        'org_name': Use(str),
+        'org_description':  Use(str),
         # 'skills': Or(None, [And(str, len)])
     })
 
