@@ -19,7 +19,7 @@ class ImpactDetector:
     JOB_SCHEMA = Schema({
         'title': And(str, len),
         'description':  And(str, len),
-        'org_name': And(str, len),
+        'org_name': Or(None, And(str, len)),
         'org_description':  Or(None, And(str, len)),
         # 'skills': Or(None, [And(str, len)])
     })
