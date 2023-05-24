@@ -11,7 +11,7 @@ nltk.download('punkt')
 nltk.download('stopwords')
 
 
-class ImpactJobsDetector:
+class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
@@ -21,7 +21,7 @@ class ImpactJobsDetector:
         'description':  And(str, len),
         'org_name': And(str, len),
         'org_description':  Or(None, And(str, len)),
-        'skills': Or(None, [And(str, len)])
+        # 'skills': Or(None, [And(str, len)])
     })
 
     def __init__(self, jobs) -> None:
@@ -69,6 +69,5 @@ class ImpactJobsDetector:
         print(text_job, '@@')
 
         new = self.VECTORIZER.transform([text_job])
-        prediction = self.model.predict(new)
-        print(prediction, '@@@')
+        prediction = self.model.predict(new)[0]
         return prediction == 1

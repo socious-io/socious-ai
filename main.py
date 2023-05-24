@@ -1,12 +1,5 @@
-from src.db import DB
-from src.detector import ImpactJobsDetector
-
-jobs = DB.fetch_lazy('''
-  SELECT p.title, p.description, p.skills, org.name as org_name, org.description as org_description 
-  FROM projects p join organizations org on org.id=p.identity_id
-''')
+from src.http.app import run
 
 
-detector = ImpactJobsDetector(jobs)
-
-print(detector.is_impact_job(jobs[1]))
+if __name__ == "__main__":
+    run()
