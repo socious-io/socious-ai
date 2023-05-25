@@ -1,9 +1,11 @@
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
+import joblib
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
 import re
+from langdetect import detect
 from schema import Schema, And, Use
 
 # Download necessary NLTK data
@@ -15,6 +17,7 @@ class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
+    MODEL_NAME = 'impact_jobs_detector.pkl'
 
     JOB_SCHEMA = Schema({
         'title': And(str, len),
@@ -51,22 +54,42 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
         return " ".join(filtered_text)
 
-    def train(self):
+    def is_english(self, text):
+        try:
+            language = detect(text)
+        except Exception:
+            return False
+        if language == 'en':
+            return True
+        return False
+
+    def train(self, force=False):
+        if not force:
+            try:
+                model = joblib.load(self.MODEL_NAME)
+                self.model = model
+                return
+            except Exception:
+                pass
+
+        print('Start training with %d of jobs ....' % len(self.jobs))
+
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
         corpus = [self.preprocess_text(text) for text in corpus]
+        corpus = list(filter(self.is_english, corpus))
 
+        print('%d of jobs detected as EN to train' % len(self.jobs))
         # Vectorize the text
         dataset = self.VECTORIZER.fit_transform(corpus)
 
         # Create and train a one-class SVM
         self.model = OneClassSVM(gamma='auto').fit(dataset)
+        joblib.dump(self.model, self.MODEL_NAME)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
         text_job = self.convert_job_to_text(job)
         text_job = self.preprocess_text(text_job)
-
-        print(text_job, '@@')
 
         new = self.VECTORIZER.transform([text_job])
         prediction = self.model.predict(new)[0]
