@@ -16,7 +16,7 @@ content %}
       >
         It's a job with substantial impact !
       </div>
-      {% else %}
+      {% endif %} {% if impact == False %}
       <div
         class="p-3 text-warning-emphasis bg-warning-subtle border border-warning-subtle rounded-3"
       >
@@ -28,7 +28,7 @@ content %}
         <input
           type="text"
           class="form-control"
-          value="{{form['title']}}"
+          value="{{form.get('title', '')}}"
           name="title"
           id="job-title"
         />
@@ -38,7 +38,7 @@ content %}
         <input
           type="text"
           class="form-control"
-          value="{{form['org_name']}}"
+          value="{{form.get('org_name', '')}}"
           name="org_name"
           id="org-name"
         />
@@ -52,7 +52,7 @@ content %}
           rows="3"
           name="description"
         >
-{{form['description']}}
+{{ form.get('description', '') }}
         </textarea>
         <div class="col-12">
           <label for="job-desc" class="form-label"
@@ -65,7 +65,7 @@ content %}
             rows="3"
             name="org_description"
           >
-{{form['org_description']}}
+{{ form.get('org_description', '') }}
 </textarea
           >
         </div>
