@@ -86,7 +86,7 @@ class ImpactDetector:
 
         # Create and train a one-class SVM
         self.model = OneClassSVM(gamma='auto').fit(dataset)
-        # joblib.dump(self.model, self.MODEL_NAME)
+        joblib.dump(self.model, self.MODEL_NAME)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
