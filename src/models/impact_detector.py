@@ -1,3 +1,4 @@
+from itertools import compress
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
 import joblib
@@ -77,20 +78,20 @@ class ImpactDetector:
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
         corpus = [self.preprocess_text(text) for text in corpus]
         corpus = list(filter(self.is_english, corpus))
-
-        print('%d of jobs detected as EN to train' % len(self.jobs))
+        # corpus = list(compress(self.is_english, corpus))
+        print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
+        self.VECTORIZER.fit(corpus)
         dataset = self.VECTORIZER.fit_transform(corpus)
 
         # Create and train a one-class SVM
         self.model = OneClassSVM(gamma='auto').fit(dataset)
-        joblib.dump(self.model, self.MODEL_NAME)
+        # joblib.dump(self.model, self.MODEL_NAME)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
         text_job = self.convert_job_to_text(job)
         text_job = self.preprocess_text(text_job)
-
         new = self.VECTORIZER.transform([text_job])
         prediction = self.model.predict(new)[0]
         return prediction == 1
