@@ -19,6 +19,7 @@ class ImpactDetector:
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
     MODEL_NAME = 'impact_jobs_detector.pkl'
+    VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
 
     JOB_SCHEMA = Schema({
         'title': And(str, len),
@@ -68,6 +69,7 @@ class ImpactDetector:
         if not force:
             try:
                 model = joblib.load(self.MODEL_NAME)
+                self.VECTORIZER = joblib.load(self.VECTORIZER_NAME)
                 self.model = model
                 return
             except Exception:
@@ -87,6 +89,7 @@ class ImpactDetector:
         # Create and train a one-class SVM
         self.model = OneClassSVM(gamma='auto').fit(dataset)
         joblib.dump(self.model, self.MODEL_NAME)
+        joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
