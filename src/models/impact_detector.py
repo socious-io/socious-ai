@@ -1,4 +1,5 @@
 from itertools import compress
+from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
 import joblib
@@ -18,6 +19,8 @@ class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
+    SUMMARIZER = pipeline(
+        "summarization", model="sshleifer/distilbart-cnn-12-6")
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
 
@@ -54,7 +57,9 @@ class ImpactDetector:
         word_tokens = word_tokenize(text)
         filtered_text = [
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
-        return " ".join(filtered_text)
+        summary = self.SUMMARIZER(
+            " ".join(filtered_text), max_length=50, min_length=25, do_sample=False)
+        return summary[0]['summary_text']
 
     def is_english(self, text):
         try:
