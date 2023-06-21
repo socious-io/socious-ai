@@ -64,6 +64,10 @@ class ImpactDetector:
         for chunk in chunks:
             max_length = int(len(chunk.split()) * 0.3)
             min_length = int(len(chunk.split()) * 0.1)
+            if max_length < 10:
+                max_length = 10
+            if min_length < 5:
+                min_length = 5
             summaries.append(self.SUMMARIZER(
                 chunk, max_length=max_length,
                 min_length=min_length,
