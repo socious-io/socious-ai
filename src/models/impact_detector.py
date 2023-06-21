@@ -57,9 +57,12 @@ class ImpactDetector:
         word_tokens = word_tokenize(text)
         filtered_text = [
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
-        summary = self.SUMMARIZER(
-            " ".join(filtered_text), max_length=50, min_length=25, do_sample=False)
-        return summary[0]['summary_text']
+
+        text = " ".join(filtered_text)
+        chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
+        summaries = [self.SUMMARIZER(chunk, max_length=50, min_length=25, do_sample=False)[
+            0]['summary_text'] for chunk in chunks]
+        return " ".join(summaries)
 
     def is_english(self, text):
         try:
