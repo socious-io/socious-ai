@@ -60,8 +60,11 @@ class ImpactDetector:
 
         text = " ".join(filtered_text)
         chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
-        summaries = [self.SUMMARIZER(chunk, max_length=50, min_length=25, do_sample=False)[
-            0]['summary_text'] for chunk in chunks]
+        summaries = [self.SUMMARIZER(
+            chunk, max_length=50 if len(chunk) > 50 else len(chunk),
+            min_length=25 if len(chunk) > 25 else len(chunk),
+            do_sample=False
+        )[0]['summary_text'] for chunk in chunks]
         return " ".join(summaries)
 
     def is_english(self, text):
