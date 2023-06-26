@@ -52,13 +52,7 @@ class ImpactDetector:
             ' '.join(job.get('skills') or [])
         )
 
-    def preprocess_text(self, text):
-        text = re.sub(self.CLEANER, '', text)
-        word_tokens = word_tokenize(text)
-        filtered_text = [
-            word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
-
-        text = " ".join(filtered_text)
+    def summaries(self, text):
         chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
         summaries = []
         for chunk in chunks:
@@ -75,6 +69,18 @@ class ImpactDetector:
             )[0]['summary_text'])
 
         return " ".join(summaries)
+
+    def preprocess_text(self, text):
+        text = re.sub(self.CLEANER, '', text)
+        word_tokens = word_tokenize(text)
+        filtered_text = [
+            word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
+
+        text = " ".join(filtered_text)
+        try:
+            return self.summaries(text)
+        except Exception:
+            return text
 
     def is_english(self, text):
         try:
