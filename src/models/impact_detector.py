@@ -1,4 +1,6 @@
 from itertools import compress
+import shelve
+import hashlib
 from multiprocessing import Pool
 from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -18,12 +20,16 @@ nltk.download('stopwords')
 
 class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
+    PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
     SUMMARIZER = pipeline(
         "summarization", model="sshleifer/distilbart-cnn-12-6")
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
+
+    ENABLE_PROCESS_COUNTER = True
+    PROCESS_COUNTER = 0
 
     JOB_SCHEMA = Schema({
         'title': And(str, len),
@@ -53,6 +59,9 @@ class ImpactDetector:
             ' '.join(job.get('skills') or [])
         )
 
+    def create_unique_id(text):
+        return hashlib.sha256(text.encode()).hexdigest()
+
     def summaries(self, text):
         if len(text) <= 50:
             return text
@@ -74,16 +83,33 @@ class ImpactDetector:
         return " ".join(summaries)
 
     def preprocess_text(self, text):
+        if self.ENABLE_PROCESS_COUNTER:
+            self.PROCESS_COUNTER += 1
+            print(f'Progress: {self.PROCESS_COUNTER}', end='\r')
         text = re.sub(self.CLEANER, '', text)
         word_tokens = word_tokenize(text)
         filtered_text = [
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
+        id = self.create_unique_id(text)
+        processed = None
+
+        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
+            processed = db.get(id)
+
+        if processed:
+            return processed
+
         try:
-            return self.summaries(text)
+            processed = self.summaries(text)
         except Exception:
-            return text
+            processed = text
+
+        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
+            processed = db[id] = processed
+
+        return processed
 
     def is_english(self, text):
         try:
@@ -120,6 +146,7 @@ class ImpactDetector:
         self.model = OneClassSVM(gamma='auto').fit(dataset)
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
+        self.ENABLE_PROCESS_COUNTER = False
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
