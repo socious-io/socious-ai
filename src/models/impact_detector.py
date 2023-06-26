@@ -1,4 +1,5 @@
 from itertools import compress
+from multiprocessing import Pool
 from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
@@ -53,6 +54,8 @@ class ImpactDetector:
         )
 
     def summaries(self, text):
+        if len(text) <= 50:
+            return text
         chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
         summaries = []
         for chunk in chunks:
@@ -77,10 +80,6 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
-
-        if len(text) <= 50:
-            return text
-
         try:
             return self.summaries(text)
         except Exception:
@@ -108,13 +107,9 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
+        with Pool() as p:
+            corpus = p.map(self.preprocess_text, corpus)
 
-        processed = []
-        for i, text in enumerate(corpus):
-            processed.append(self.preprocess_text(text))
-            print(f'Preprocessed: {i}%', end='\r')
-
-        corpus = processed
         corpus = list(filter(self.is_english, corpus))
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
