@@ -59,7 +59,7 @@ class ImpactDetector:
             ' '.join(job.get('skills') or [])
         )
 
-    def create_unique_id(text):
+    def create_unique_id(self, text):
         return hashlib.sha256(text.encode()).hexdigest()
 
     def summaries(self, text):
