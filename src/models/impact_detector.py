@@ -77,6 +77,10 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
+
+        if len(text) <= 50:
+            return text
+
         try:
             return self.summaries(text)
         except Exception:
@@ -104,9 +108,14 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        corpus = [self.preprocess_text(text) for text in corpus]
+
+        processed = []
+        for i, text in enumerate(corpus):
+            processed.append(self.preprocess_text(text))
+            print(f'Preprocessed: {i}%', end='\r')
+
+        corpus = processed
         corpus = list(filter(self.is_english, corpus))
-        # corpus = list(compress(self.is_english, corpus))
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
         self.VECTORIZER.fit(corpus)
