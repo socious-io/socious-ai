@@ -88,15 +88,16 @@ class ImpactDetector:
         filtered_text = [
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
-        text = " ".join(filtered_text)
+        text = " ".join(filtered_text).lower()
         # id = self.create_unique_id(text)
-        processed = None
+        """ processed = None
         try:
             processed = self.summaries(text)
         except Exception:
-            processed = text
+            processed = text """
 
-        return processed
+        # return processed
+        return text
 
     def is_english(self, text):
         try:
