@@ -119,7 +119,7 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        result = joblib.Parallel(n_jobs=-1)(
+        result = joblib.Parallel(n_jobs=-1, verbose=10)(
             joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
 
         corpus = list(filter(self.is_english, result))
