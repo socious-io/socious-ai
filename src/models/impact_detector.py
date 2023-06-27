@@ -87,14 +87,21 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
-        # id = self.create_unique_id(text)
+        id = self.create_unique_id(text)
         processed = None
 
-        try:
-            processed = self.summaries(text)
-        except Exception:
-            processed = text
+        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
+            processed = db.get(id)
 
+            if processed:
+                return processed
+
+            try:
+                processed = self.summaries(text)
+            except Exception:
+                processed = text
+
+            db[id] = processed
         return processed
 
     def is_english(self, text):
@@ -119,12 +126,14 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        with Pool(cpu_count()) as p:
-            result = list(
-                tqdm(p.imap(self.preprocess_text, corpus), total=len(corpus)))
+        result = []
+        for text in tqdm(corpus):
+            try:
+                result.append(self.preprocess_text(text))
+            except Exception as e:
+                print(f"Error preprocessing text: {e}")
 
-        corpus = result
-        corpus = list(filter(self.is_english, corpus))
+        corpus = list(filter(self.is_english, result))
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
         self.VECTORIZER.fit(corpus)
