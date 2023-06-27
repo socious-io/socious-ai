@@ -1,8 +1,6 @@
-from itertools import compress
 import shelve
 import hashlib
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count, Manager
 from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
@@ -23,6 +21,8 @@ class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+    SUMMARIZER = pipeline(
+        "summarization", model="sshleifer/distilbart-cnn-12-6")
     VECTORIZER = TfidfVectorizer()
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
@@ -61,8 +61,7 @@ class ImpactDetector:
         return hashlib.sha256(text.encode()).hexdigest()
 
     def summaries(self, text):
-        summarizer = pipeline(
-            "summarization", model="sshleifer/distilbart-cnn-12-6")
+
         if len(text) <= 50:
             return text
         chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
@@ -74,7 +73,7 @@ class ImpactDetector:
                 max_length = 10
             if min_length < 5:
                 min_length = 5
-            summaries.append(summarizer(
+            summaries.append(self.SUMMARIZER(
                 chunk, max_length=max_length,
                 min_length=min_length,
                 do_sample=False
@@ -90,14 +89,13 @@ class ImpactDetector:
 
         text = " ".join(filtered_text).lower()
         # id = self.create_unique_id(text)
-        """ processed = None
+        processed = None
         try:
             processed = self.summaries(text)
         except Exception:
-            processed = text """
+            processed = text
 
-        # return processed
-        return text
+        return processed
 
     def is_english(self, text):
         try:
@@ -121,9 +119,8 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        with Pool(cpu_count()) as p:
-            result = list(
-                tqdm(p.imap(self.preprocess_text, corpus), total=len(corpus)))
+        result = joblib.Parallel(n_jobs=-1)(
+            joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
 
         corpus = list(filter(self.is_english, result))
         print('%d of jobs detected as EN to train' % len(corpus))
@@ -135,7 +132,6 @@ class ImpactDetector:
         self.model = OneClassSVM(gamma='auto').fit(dataset)
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
-        self.ENABLE_PROCESS_COUNTER = False
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
