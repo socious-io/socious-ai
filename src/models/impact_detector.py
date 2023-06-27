@@ -2,7 +2,7 @@ from itertools import compress
 import shelve
 import hashlib
 from tqdm import tqdm
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool, cpu_count, Manager
 from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
@@ -38,6 +38,8 @@ class ImpactDetector:
     })
 
     def __init__(self, jobs) -> None:
+        self.manager = Manager()
+        self.db_lock = self.manager.Lock()
         self.validate_jobs(jobs)
         self.jobs = jobs
         self.model = None
@@ -90,18 +92,27 @@ class ImpactDetector:
         id = self.create_unique_id(text)
         processed = None
 
-        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
-            processed = db.get(id)
-
+        self.db_lock.acquire()
+        try:
+            with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
+                processed = db.get(id)
             if processed:
                 return processed
+        finally:
+            self.db_lock.release()
 
-            try:
-                processed = self.summaries(text)
-            except Exception:
-                processed = text
+        try:
+            processed = self.summaries(text)
+        except Exception:
+            processed = text
 
-            db[id] = processed
+        self.db_lock.acquire()
+        try:
+            with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
+                db[id] = processed
+        finally:
+            self.db_lock.release()
+
         return processed
 
     def is_english(self, text):
@@ -126,12 +137,9 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        result = []
-        for text in tqdm(corpus):
-            try:
-                result.append(self.preprocess_text(text))
-            except Exception as e:
-                print(f"Error preprocessing text: {e}")
+        with Pool(cpu_count()) as p:
+            result = list(
+                tqdm(p.imap(self.preprocess_text, corpus), total=len(corpus)))
 
         corpus = list(filter(self.is_english, result))
         print('%d of jobs detected as EN to train' % len(corpus))
