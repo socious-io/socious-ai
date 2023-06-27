@@ -42,9 +42,9 @@ class ImpactDetector:
         # 'skills': Or(None, [And(str, len)])
     })
 
-    def __init__(self, jobs) -> None:
-        """ self.manager = Manager()
-        self.db_lock = self.manager.Lock() """
+    def __init__(self, jobs, test_jobs) -> None:
+        self.test_jobs = test_jobs
+        self.accuracy = 0
         self.validate_jobs(jobs)
         self.jobs = jobs
         self.model = None
@@ -106,6 +106,7 @@ class ImpactDetector:
                 model = joblib.load(self.MODEL_NAME)
                 self.VECTORIZER = joblib.load(self.VECTORIZER_NAME)
                 self.model = model
+                self.evaluate()
                 return
             except Exception:
                 pass
@@ -126,6 +127,15 @@ class ImpactDetector:
         self.model = OneClassSVM(gamma='auto').fit(dataset)
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
+        self.evaluate()
+
+    def evaluate(self):
+        correct_predictions = 0
+        for job in self.test_jobs:
+            if self.is_impact_job(job):
+                correct_predictions += 1
+
+        self.accuracy = correct_predictions / len(self.test_jobs)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])

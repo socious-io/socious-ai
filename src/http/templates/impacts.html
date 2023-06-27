@@ -2,6 +2,11 @@
 content %}
 <div class="row">
   <div class="col-6">
+    <div
+        class="p-3 text-warning-emphasis bg-warning-subtle border border-warning-subtle rounded-3"
+      >
+        Current accuracy : {{accuracy}}
+      </div>
     <form class="row" action="/impacts/verify.html" method="post">
       <h3>Verify impact job form</h3>
       {% if error %}

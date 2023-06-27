@@ -24,6 +24,6 @@ def verify_html():
     form = request.form.to_dict()
     print(form)
     try:
-        return render_template(TMP, **{'impact': impact_detector.is_impact_job(form), 'form': form})
+        return render_template(TMP, **{'impact': impact_detector.is_impact_job(form), 'form': form, 'accuracy': impact_detector.accuracy})
     except Exception as err:
-        return render_template(TMP, **{'error': err, 'form': form})
+        return render_template(TMP, **{'error': err, 'form': form, 'accuracy': impact_detector.accuracy})
