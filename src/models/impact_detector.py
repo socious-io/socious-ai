@@ -18,8 +18,6 @@ if __name__ == "__main__":
     # Download nltk data when script is run as main module
     nltk.download('punkt')
     nltk.download('stopwords')
-    summarizer = pipeline(
-        "summarization", model="sshleifer/distilbart-cnn-12-6")
 
 
 class ImpactDetector:
