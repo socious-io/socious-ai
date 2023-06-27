@@ -1,7 +1,8 @@
 from itertools import compress
 import shelve
 import hashlib
-from multiprocessing import Pool
+from tqdm import tqdm
+from multiprocessing import Pool, cpu_count
 from transformers import pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
@@ -27,9 +28,6 @@ class ImpactDetector:
         "summarization", model="sshleifer/distilbart-cnn-12-6")
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
-
-    ENABLE_PROCESS_COUNTER = True
-    PROCESS_COUNTER = 0
 
     JOB_SCHEMA = Schema({
         'title': And(str, len),
@@ -83,9 +81,6 @@ class ImpactDetector:
         return " ".join(summaries)
 
     def preprocess_text(self, text):
-        if self.ENABLE_PROCESS_COUNTER:
-            self.PROCESS_COUNTER += 1
-            print(f'Progress: {self.PROCESS_COUNTER}', end='\r')
         text = re.sub(self.CLEANER, '', text)
         word_tokens = word_tokenize(text)
         filtered_text = [
@@ -98,17 +93,15 @@ class ImpactDetector:
         with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
             processed = db.get(id)
 
-        if processed:
-            return processed
+            if processed:
+                return processed
 
-        try:
-            processed = self.summaries(text)
-        except Exception:
-            processed = text
+            try:
+                processed = self.summaries(text)
+            except Exception:
+                processed = text
 
-        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
-            processed = db[id] = processed
-
+            db[id] = processed
         return processed
 
     def is_english(self, text):
@@ -133,9 +126,11 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        with Pool() as p:
-            corpus = p.map(self.preprocess_text, corpus)
+        with Pool(cpu_count()) as p:
+            result = list(
+                tqdm(p.imap(self.preprocess_text, corpus), total=len(corpus)))
 
+        corpus = result
         corpus = list(filter(self.is_english, corpus))
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
