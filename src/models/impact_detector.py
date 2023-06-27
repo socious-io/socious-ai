@@ -13,8 +13,10 @@ from langdetect import detect
 from schema import Schema, And, Use
 
 # Download necessary NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
+if __name__ == "__main__":
+    # Download nltk data when script is run as main module
+    nltk.download('punkt')
+    nltk.download('stopwords')
 
 
 class ImpactDetector:
