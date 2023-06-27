@@ -96,7 +96,8 @@ class ImpactDetector:
         processed = None
         try:
             processed = self.summaries(text)
-        except Exception:
+        except Exception as e:
+            print('Summerize error %s ' % e)
             processed = text
 
         return processed
