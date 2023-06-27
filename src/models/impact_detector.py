@@ -1,7 +1,7 @@
 import shelve
 import hashlib
 from tqdm import tqdm
-from transformers import pipeline
+from transformers import T5ForConditionalGeneration, T5Tokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
 import joblib
@@ -26,6 +26,11 @@ class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
+
+    SUMMARIZER_MODEL_NAME = 't5-small'
+    TOKENIZER = T5Tokenizer.from_pretrained(SUMMARIZER_MODEL_NAME)
+    SUMMARIZER = T5ForConditionalGeneration.from_pretrained(
+        SUMMARIZER_MODEL_NAME)
 
     VECTORIZER = TfidfVectorizer()
     MODEL_NAME = 'impact_jobs_detector.pkl'
@@ -65,25 +70,11 @@ class ImpactDetector:
         return hashlib.sha256(text.encode()).hexdigest()
 
     def summaries(self, text):
-
-        if len(text) <= 50:
-            return text
-        chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
-        summaries = []
-        for chunk in chunks:
-            max_length = int(len(chunk.split()) * 0.3)
-            min_length = int(len(chunk.split()) * 0.1)
-            if max_length < 10:
-                max_length = 10
-            if min_length < 5:
-                min_length = 5
-            summaries.append(summarizer(
-                chunk, max_length=max_length,
-                min_length=min_length,
-                do_sample=False
-            )[0]['summary_text'])
-
-        return " ".join(summaries)
+        inputs = self.TOKENIZER.encode(
+            text, return_tensors="pt", max_length=512)
+        outputs = self.SUMMARIZER.generate(
+            inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
+        return self.TOKENIZER.decode(outputs[0])
 
     def preprocess_text(self, text):
         text = re.sub(self.CLEANER, '', text)
