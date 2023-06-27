@@ -24,8 +24,6 @@ class ImpactDetector:
     PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
     VECTORIZER = TfidfVectorizer()
-    SUMMARIZER = pipeline(
-        "summarization", model="sshleifer/distilbart-cnn-12-6")
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
 
@@ -38,8 +36,8 @@ class ImpactDetector:
     })
 
     def __init__(self, jobs) -> None:
-        self.manager = Manager()
-        self.db_lock = self.manager.Lock()
+        """ self.manager = Manager()
+        self.db_lock = self.manager.Lock() """
         self.validate_jobs(jobs)
         self.jobs = jobs
         self.model = None
@@ -63,6 +61,8 @@ class ImpactDetector:
         return hashlib.sha256(text.encode()).hexdigest()
 
     def summaries(self, text):
+        summarizer = pipeline(
+            "summarization", model="sshleifer/distilbart-cnn-12-6")
         if len(text) <= 50:
             return text
         chunks = [text[i:i+1024] for i in range(0, len(text), 1024)]
@@ -74,7 +74,7 @@ class ImpactDetector:
                 max_length = 10
             if min_length < 5:
                 min_length = 5
-            summaries.append(self.SUMMARIZER(
+            summaries.append(summarizer(
                 chunk, max_length=max_length,
                 min_length=min_length,
                 do_sample=False
@@ -89,29 +89,12 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
-        id = self.create_unique_id(text)
+        # id = self.create_unique_id(text)
         processed = None
-
-        self.db_lock.acquire()
-        try:
-            with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
-                processed = db.get(id)
-            if processed:
-                return processed
-        finally:
-            self.db_lock.release()
-
         try:
             processed = self.summaries(text)
         except Exception:
             processed = text
-
-        self.db_lock.acquire()
-        try:
-            with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
-                db[id] = processed
-        finally:
-            self.db_lock.release()
 
         return processed
 
