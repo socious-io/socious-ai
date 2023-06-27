@@ -12,19 +12,21 @@ import re
 from langdetect import detect
 from schema import Schema, And, Use
 
+
 # Download necessary NLTK data
 if __name__ == "__main__":
     # Download nltk data when script is run as main module
     nltk.download('punkt')
     nltk.download('stopwords')
+    summarizer = pipeline(
+        "summarization", model="sshleifer/distilbart-cnn-12-6")
 
 
 class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
     PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
-    SUMMARIZER = pipeline(
-        "summarization", model="sshleifer/distilbart-cnn-12-6")
+
     VECTORIZER = TfidfVectorizer()
     MODEL_NAME = 'impact_jobs_detector.pkl'
     VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
@@ -75,7 +77,7 @@ class ImpactDetector:
                 max_length = 10
             if min_length < 5:
                 min_length = 5
-            summaries.append(self.SUMMARIZER(
+            summaries.append(summarizer(
                 chunk, max_length=max_length,
                 min_length=min_length,
                 do_sample=False
@@ -121,7 +123,7 @@ class ImpactDetector:
         print('Start training with %d of jobs ....' % len(self.jobs))
 
         corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        result = joblib.Parallel(n_jobs=-1, verbose=10)(
+        result = joblib.Parallel(n_jobs=10, verbose=10)(
             joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
 
         corpus = list(filter(self.is_english, result))
