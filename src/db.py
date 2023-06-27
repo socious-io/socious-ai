@@ -53,7 +53,7 @@ class Database:
             results = cur.fetchall()
             return self.result_to_dict(cur, results)
 
-    def fetch_lazy(self, query, params=None, batch_size=1000):
+    def fetch_lazy(self, query, params=None, batch_size=1000, limit=0):
         listed = []
         with self.conn.cursor() as cur:
             cur.execute(query, params)
@@ -62,6 +62,8 @@ class Database:
                 if not rows:
                     break
                 listed += self.result_to_dict(cur, rows)
+                if limit > 0 and len(listed) >= limit:
+                    break
         return listed
 
     def result_to_dict(self, cursor, results):
