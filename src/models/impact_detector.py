@@ -87,21 +87,14 @@ class ImpactDetector:
             word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text)
-        id = self.create_unique_id(text)
+        # id = self.create_unique_id(text)
         processed = None
 
-        with shelve.open(self.PROCCESSED_TEXTS_DB) as db:
-            processed = db.get(id)
+        try:
+            processed = self.summaries(text)
+        except Exception:
+            processed = text
 
-            if processed:
-                return processed
-
-            try:
-                processed = self.summaries(text)
-            except Exception:
-                processed = text
-
-            db[id] = processed
         return processed
 
     def is_english(self, text):
