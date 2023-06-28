@@ -131,11 +131,17 @@ class ImpactDetector:
 
     def evaluate(self):
         correct_predictions = 0
-        for job in self.test_jobs:
-            if self.is_impact_job(job):
-                correct_predictions += 1
+        corpus = [self.convert_job_to_text(job) for job in self.test_jobs]
+        result = joblib.Parallel(n_jobs=10, verbose=10)(
+            joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
+        corpus = list(filter(self.is_english, result))
+        results = self.VECTORIZER.transform(corpus)
+        predictions = self.model.predict(results)
 
-        self.accuracy = correct_predictions / len(self.test_jobs)
+        for p in predictions:
+            if p == 1:
+                correct_predictions += 1
+        self.accuracy = len(corpus) / correct_predictions
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
