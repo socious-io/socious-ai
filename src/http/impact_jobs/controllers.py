@@ -8,7 +8,7 @@ TMP = 'impacts.html'
 
 @bp.route('', methods=['GET'])
 def home():
-    return render_template(TMP, **{'form': {}})
+    return render_template(TMP, **{'form': {}, 'accuracy': impact_detector.accuracy})
 
 
 @bp.route('/verify.json', methods=['POST'])

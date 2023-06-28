@@ -141,9 +141,9 @@ class ImpactDetector:
         for p in predictions:
             if p == 1:
                 correct_predictions += 1
-        self.accuracy = len(corpus) / correct_predictions
+        self.accuracy = (correct_predictions * 100) / len(corpus)
         with open("accuracy.txt", "a") as f:
-            f.write("accuracy: %d")
+            f.write("accuracy: %d" % self.accuracy)
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
