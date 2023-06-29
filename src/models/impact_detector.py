@@ -1,27 +1,33 @@
 import shelve
 import hashlib
+import joblib
 from tqdm import tqdm
+from sklearn.model_selection import GridSearchCV
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
-import joblib
+from sklearn.metrics import accuracy_score
 from nltk.corpus import stopwords
+from nltk.stem import WordNetLemmatizer
 from nltk.tokenize import word_tokenize
 import nltk
 import re
 from langdetect import detect
 from schema import Schema, And, Use
-
+from sklearn.metrics import classification_report
+import string
 
 # Download necessary NLTK data
 if __name__ == "__main__":
     # Download nltk data when script is run as main module
     nltk.download('punkt')
     nltk.download('stopwords')
+    nltk.download('wordnet')  # for lemmatization
 
 
 class ImpactDetector:
     STOP_WORDS = set(stopwords.words('english'))
+    LEMMATIZER = WordNetLemmatizer()
     PROCCESSED_TEXTS_DB = 'processed_texts.db'
     CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
 
@@ -77,11 +83,16 @@ class ImpactDetector:
     def preprocess_text(self, text):
         text = re.sub(self.CLEANER, '', text)
         word_tokens = word_tokenize(text)
+        # Lemmatization
+        lemmatized_words = [self.LEMMATIZER.lemmatize(
+            word) for word in word_tokens]
+        # Remove punctuation
+        words_without_punct = [
+            word for word in lemmatized_words if word not in string.punctuation]
         filtered_text = [
-            word for word in word_tokens if word.casefold() not in self.STOP_WORDS]
+            word for word in words_without_punct if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text).lower()
-        # id = self.create_unique_id(text)
         processed = None
         try:
             processed = self.summaries(text)
@@ -121,16 +132,20 @@ class ImpactDetector:
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
         self.VECTORIZER.fit(corpus)
-        dataset = self.VECTORIZER.fit_transform(corpus)
+        dataset = self.VECTORIZER.transform(corpus)
 
         # Create and train a one-class SVM
-        self.model = OneClassSVM(gamma='auto').fit(dataset)
+        # GridSearchCV to tune hyperparameters
+        param_grid = {'gamma': ['scale', 'auto'], 'nu': [0.5, 0.7, 0.9]}
+        grid_search = GridSearchCV(OneClassSVM(), param_grid, cv=5)
+        grid_search.fit(dataset)
+
+        self.model = grid_search.best_estimator_
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
         self.evaluate()
 
     def evaluate(self):
-        correct_predictions = 0
         corpus = [self.convert_job_to_text(job) for job in self.test_jobs]
         result = joblib.Parallel(n_jobs=10, verbose=10)(
             joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
@@ -138,12 +153,15 @@ class ImpactDetector:
         results = self.VECTORIZER.transform(corpus)
         predictions = self.model.predict(results)
 
-        for p in predictions:
-            if p == 1:
-                correct_predictions += 1
-        self.accuracy = (correct_predictions * 100) / len(corpus)
-        with open("accuracy.txt", "a") as f:
-            f.write("accuracy: %d" % self.accuracy)
+        # Use classification report instead of accuracy
+        report = classification_report([1]*len(corpus), predictions)
+        print(report)
+
+        self.accuracy = accuracy_score([1]*len(corpus), predictions)
+        # Write the report to a file
+        with open("classification_report.txt", "w") as f:
+            f.write(report)
+            f.write("\nAccuracy: " + str(self.accuracy))
 
     def is_impact_job(self, job):
         self.validate_jobs([job])
