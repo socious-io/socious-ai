@@ -1,8 +1,9 @@
 import shelve
 import hashlib
+import numpy as np
 import joblib
 from tqdm import tqdm
-from sklearn.model_selection import GridSearchCV
+from sklearn.model_selection import ParameterGrid
 from transformers import T5ForConditionalGeneration, T5Tokenizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.svm import OneClassSVM
@@ -22,7 +23,7 @@ if __name__ == "__main__":
     # Download nltk data when script is run as main module
     nltk.download('punkt')
     nltk.download('stopwords')
-    nltk.download('wordnet')  # for lemmatization
+    nltk.download('wordnet')
 
 
 class ImpactDetector:
@@ -133,17 +134,29 @@ class ImpactDetector:
         # Vectorize the text
         self.VECTORIZER.fit(corpus)
         dataset = self.VECTORIZER.transform(corpus)
+        param_grid = {'nu': [0.1, 0.5, 0.9], 'gamma': [0.001, 0.01, 0.1]}
 
-        # Create and train a one-class SVM
-        # GridSearchCV to tune hyperparameters
-        param_grid = {'gamma': ['scale', 'auto'], 'nu': [0.5, 0.7, 0.9]}
-        grid_search = GridSearchCV(OneClassSVM(), param_grid, cv=5)
-        grid_search.fit(dataset)
+        # Do the grid search manually
+        best_score = float('inf')
+        best_params = None
+        for params in ParameterGrid(param_grid):
+            svm = OneClassSVM(**params)
+            svm.fit(dataset)
+            score = self.anomaly_score(dataset, svm)
+            if score < best_score:
+                best_score = score
+                best_params = params
 
-        self.model = grid_search.best_estimator_
+        self.model = OneClassSVM(**best_params)
+        self.model.fit(dataset)
+
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
         self.evaluate()
+
+    def anomaly_score(self, X, estimator):
+        decision_function = estimator.decision_function(X)
+        return np.mean(decision_function)
 
     def evaluate(self):
         corpus = [self.convert_job_to_text(job) for job in self.test_jobs]
