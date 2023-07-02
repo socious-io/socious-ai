@@ -75,6 +75,9 @@ class ImpactDetector:
         return hashlib.sha256(text.encode()).hexdigest()
 
     def summaries(self, text):
+        if len(text) < 100:
+            return text
+
         inputs = self.TOKENIZER.encode(
             text, return_tensors="pt", max_length=512)
         outputs = self.SUMMARIZER.generate(
