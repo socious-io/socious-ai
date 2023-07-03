@@ -50,10 +50,10 @@ class ImpactDetector:
     def __init__(self, jobs, test_jobs) -> None:
         self.test_jobs = test_jobs
         self.accuracy = 0
-        # self.validate_jobs(jobs)
+        self.validate_jobs(jobs)
         self.jobs = jobs
         self.model = None
-        # self.train()
+        self.train()
 
     def validate_jobs(self, jobs):
         validated = Schema([self.JOB_SCHEMA]).validate(jobs)
