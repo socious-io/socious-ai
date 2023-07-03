@@ -2,11 +2,6 @@
 content %}
 <div class="row">
   <div class="col-6">
-    <div
-        class="p-3 text-warning-emphasis bg-warning-subtle border border-warning-subtle rounded-3"
-      >
-        Current accuracy : {{accuracy}}
-      </div>
     <form class="row" action="/impacts/verify.html" method="post">
       <h3>Verify impact job form</h3>
       {% if error %}
@@ -27,54 +22,16 @@ content %}
       >
         The job is not consequential or impactful !
       </div>
-      {% endif%}
-      <div class="col-6">
-        <label for="job-title" class="form-label">Job Title</label>
-        <input
-          type="text"
-          class="form-control"
-          value="{{form.get('title', '')}}"
-          name="title"
-          id="job-title"
-        />
-      </div>
-      <div class="col-6">
-        <label for="org-name" class="form-label">Organization Name</label>
-        <input
-          type="text"
-          class="form-control"
-          value="{{form.get('org_name', '')}}"
-          name="org_name"
-          id="org-name"
-        />
-      </div>
-      <div class="col-12">
-        <label for="job-desc" class="form-label">Job Description</label>
-        <textarea
-          type="text"
-          class="form-control"
-          id="job-desc"
-          rows="3"
-          name="description"
-        >
-{{ form.get('description', '') }}
-        </textarea>
-        <div class="col-12">
-          <label for="job-desc" class="form-label"
-            >Organization Description</label
-          >
-          <textarea
+      {% endif%}      
+        <div class="col-8">
+          <input
             type="text"
             class="form-control"
-            id="job-desc"
-            rows="3"
-            name="org_description"
-          >
-{{ form.get('org_description', '') }}
-</textarea
-          >
+            name="job_link"
+            placeholder="Input joblink"
+            id="job-url"
+          />
         </div>
-        <br />
         <div class="col-4">
           <button
             class="btn btn-primary d-inline-flex align-items-center"

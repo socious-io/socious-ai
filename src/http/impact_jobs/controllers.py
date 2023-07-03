@@ -1,3 +1,4 @@
+import requests
 from flask import Blueprint, request, jsonify, render_template
 from .models import impact_detector
 
@@ -21,9 +22,14 @@ def verify():
 
 @bp.route('/verify.html', methods=['POST'])
 def verify_html():
-    form = request.form.to_dict()
-    print(form)
+    link = request.form.get('job_link')
+    req = requests.get(link, proxies=dict(
+        http='socks5://localhost:1090',
+        https='socks5://localhost:1090'
+    ))
+    impact_detector.is_impact_job(req.text)
     try:
-        return render_template(TMP, **{'impact': impact_detector.is_impact_job(form), 'form': form, 'accuracy': impact_detector.accuracy})
+
+        return render_template(TMP, **{'impact': True, 'form': {}, 'accuracy': impact_detector.accuracy})
     except Exception as err:
-        return render_template(TMP, **{'error': err, 'form': form, 'accuracy': impact_detector.accuracy})
+        return render_template(TMP, **{'error': err, 'form': {}, 'accuracy': impact_detector.accuracy})

@@ -1,6 +1,6 @@
-import shelve
 import hashlib
 import numpy as np
+from bs4 import BeautifulSoup
 import joblib
 from tqdm import tqdm
 from sklearn.model_selection import ParameterGrid
@@ -18,12 +18,10 @@ from schema import Schema, And, Use
 from sklearn.metrics import classification_report
 import string
 
-# Download necessary NLTK data
-if __name__ == "__main__":
-    # Download nltk data when script is run as main module
-    nltk.download('punkt')
-    nltk.download('stopwords')
-    nltk.download('wordnet')
+
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('wordnet')
 
 
 class ImpactDetector:
@@ -52,10 +50,10 @@ class ImpactDetector:
     def __init__(self, jobs, test_jobs) -> None:
         self.test_jobs = test_jobs
         self.accuracy = 0
-        self.validate_jobs(jobs)
+        # self.validate_jobs(jobs)
         self.jobs = jobs
         self.model = None
-        self.train()
+        # self.train()
 
     def validate_jobs(self, jobs):
         validated = Schema([self.JOB_SCHEMA]).validate(jobs)
@@ -84,7 +82,13 @@ class ImpactDetector:
             inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
         return self.TOKENIZER.decode(outputs[0])
 
+    def clean_html(self, text):
+        soup = BeautifulSoup(text, "html.parser")
+        cleaned_text = soup.get_text()
+        return cleaned_text
+
     def preprocess_text(self, text):
+        text = self.clean_html(text)
         text = re.sub(self.CLEANER, '', text)
         word_tokens = word_tokenize(text)
         # Lemmatization
@@ -180,9 +184,14 @@ class ImpactDetector:
             f.write("\nAccuracy: " + str(self.accuracy))
 
     def is_impact_job(self, job):
-        self.validate_jobs([job])
-        text_job = self.convert_job_to_text(job)
+        if type(job) == dict:
+            self.validate_jobs([job])
+            text_job = self.convert_job_to_text(job)
+        else:
+            text_job = job
+
         text_job = self.preprocess_text(text_job)
+        print(text_job, '---------------------@@@-')
         new = self.VECTORIZER.transform([text_job])
         prediction = self.model.predict(new)[0]
         return prediction == 1
