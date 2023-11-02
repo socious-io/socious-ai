@@ -54,6 +54,8 @@ class Database:
             return self.result_to_dict(cur, results)
 
     def fetch_lazy(self, query, params=None, batch_size=1000, limit=0):
+        if limit > 0 and batch_size > limit:
+            batch_size = limit
         listed = []
         with self.conn.cursor() as cur:
             cur.execute(query, params)

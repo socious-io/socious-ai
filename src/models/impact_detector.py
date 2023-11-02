@@ -1,4 +1,6 @@
 import hashlib
+from multiprocessing import cpu_count
+import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
 import joblib
@@ -48,12 +50,11 @@ class ImpactDetector:
     })
 
     def __init__(self, jobs, test_jobs) -> None:
-        self.test_jobs = test_jobs
+        self.test_jobs = pd.DataFrame(test_jobs)
         self.accuracy = 0
         self.validate_jobs(jobs)
-        self.jobs = jobs
+        self.jobs = pd.DataFrame(jobs)
         self.model = None
-        self.train()
 
     def validate_jobs(self, jobs):
         validated = Schema([self.JOB_SCHEMA]).validate(jobs)
@@ -82,13 +83,14 @@ class ImpactDetector:
             inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
         return self.TOKENIZER.decode(outputs[0])
 
-    def clean_html(self, text):
+    def clean_tags(self, text):
         soup = BeautifulSoup(text, "html.parser")
-        cleaned_text = soup.get_text()
-        return cleaned_text
+        cleaned_html = soup.get_text()
+        TAG_RE = re.compile(r'<[^>]+>')
+        return TAG_RE.sub('', cleaned_html)
 
     def preprocess_text(self, text):
-        text = self.clean_html(text)
+        text = self.clean_tags(text)
         text = re.sub(self.CLEANER, '', text)
         word_tokens = word_tokenize(text)
         # Lemmatization
@@ -108,7 +110,7 @@ class ImpactDetector:
             print('Summerize error %s ' % e)
             processed = text
 
-        return processed
+        return self.clean_tags(processed)
 
     def is_english(self, text):
         try:
@@ -118,6 +120,9 @@ class ImpactDetector:
         if language == 'en':
             return True
         return False
+
+    def apply_parallel(self, df, func):
+        return joblib.Parallel(n_jobs=cpu_count())(joblib.delayed(func)(i) for i in df)
 
     def train(self, force=False):
         if not force:
@@ -131,17 +136,25 @@ class ImpactDetector:
                 pass
 
         print('Start training with %d of jobs ....' % len(self.jobs))
+        self.jobs['description'] = self.apply_parallel(
+            self.jobs['description'], self.preprocess_text)
 
-        corpus = [self.convert_job_to_text(job) for job in self.jobs]
-        result = joblib.Parallel(n_jobs=10, verbose=10)(
-            joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
+        self.jobs['org_description'] = self.apply_parallel(
+            self.jobs['org_description'], self.preprocess_text)
+
+        """         result = joblib.Parallel(n_jobs=10, verbose=10)(
+            joblib.delayed(self.preprocess)(job) for job in tqdm(self.jobs))
 
         corpus = list(filter(self.is_english, result))
         print('%d of jobs detected as EN to train' % len(corpus))
         # Vectorize the text
         self.VECTORIZER.fit(corpus)
         dataset = self.VECTORIZER.transform(corpus)
-        param_grid = {'nu': [0.1, 0.5, 0.9], 'gamma': [0.001, 0.01, 0.1]}
+        param_grid = {'nu': [0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
+                      'kernel': ['rbf', 'linear', 'poly', 'sigmoid'],
+                      'gamma': [0.01, 0.03, 0.1, 0.3, 1, 3, 10],
+                      'degree': [2, 3, 4, 5]
+                      }
 
         # Do the grid search manually
         best_score = float('inf')
@@ -159,16 +172,15 @@ class ImpactDetector:
 
         joblib.dump(self.model, self.MODEL_NAME)
         joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
-        self.evaluate()
+        self.evaluate() """
 
     def anomaly_score(self, X, estimator):
         decision_function = estimator.decision_function(X)
         return np.mean(decision_function)
 
     def evaluate(self):
-        corpus = [self.convert_job_to_text(job) for job in self.test_jobs]
         result = joblib.Parallel(n_jobs=10, verbose=10)(
-            joblib.delayed(self.preprocess_text)(text) for text in tqdm(corpus))
+            joblib.delayed(self.preprocess_text(job) for job in tqdm(self.test_jobs)))
         corpus = list(filter(self.is_english, result))
         results = self.VECTORIZER.transform(corpus)
         predictions = self.model.predict(results)
@@ -190,7 +202,7 @@ class ImpactDetector:
         else:
             text_job = job
 
-        text_job = self.preprocess_text(text_job)
+        text_job = self.preprocess_text(job)
         print(text_job, '---------------------@@@-')
         new = self.VECTORIZER.transform([text_job])
         prediction = self.model.predict(new)[0]

@@ -18,13 +18,9 @@ def configure():
 
 def installing_blueprints():
     for api in config.apps:
-        bp = importlib.import_module('src.http.%s' % api)
-        try:
-            app.register_blueprint(bp.mod)
-
-        except Exception as e:
-            print(e, '-----')
-            pass
+        a = importlib.import_module('src.http.%s' % api)
+        app.register_blueprint(a.mod)
+        a.ai_model.train()
 
 
 @app.route('/')
