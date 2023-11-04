@@ -97,8 +97,13 @@ class TrainModel:
             self.extract_keywords(tfidf_matrix))
         self.model = NearestNeighbors(n_neighbors=self.K_N_COUNT)
         self.model.fit(tfidf_matrix)
+        joblib.dump(self.model, self.MODEL_NAME)
+        joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
 
     def predict(self, query):
+        if not isinstance(query, (list, tuple, np.ndarray)):
+            query = [query]
+
         query_data = pd.DataFrame(query)
 
         proccessed_query_data = [self.preprocess_text(
@@ -111,4 +116,4 @@ class TrainModel:
         _, indices = self.model.kneighbors(query_matrix)
         elements = list(dict.fromkeys(
             element for sublist in indices for element in sublist))
-        return self.data.iloc[elements]['id'].values
+        return list(self.data.iloc[elements]['id'].values)
