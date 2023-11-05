@@ -8,5 +8,5 @@ jobs = DB.fetch_lazy('''
   WHERE org.name IS NOT NULL OR org.name <> '' ORDER BY p.created_at DESC
 ''')
 
-
+print('Fetched %d of jobs' % len(jobs))
 jobs_recommender = TrainModel(jobs)
