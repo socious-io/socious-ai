@@ -49,6 +49,7 @@ class TrainModel:
         text = re.sub('<.*?>', '', text)  # Remove HTML tags
         text = re.sub('[^\w\s]', '', text)  # Remove punctuation
         text = text.lower()  # Convert to lowercase
+        text = re.sub(r"_+", " ", text)
         return text
 
     def preprocess_text(self, text):
@@ -79,14 +80,11 @@ class TrainModel:
         return keywords
 
     def obj_to_text(self, obj):
-        values = []
-        for key in obj.keys():
-            val = obj[key]
-            if key == 'id' or type(val) is not str or type(val) is not list:
-                continue
-            if type(val) is list:
-                val = ' '.join(val)
-            values.append(val)
+        values = [
+            ' '.join(val) if isinstance(val, list) else val
+            for key, val in obj.items()
+            if key != 'id' and (isinstance(val, str) or isinstance(val, list))
+        ]
         return ' '.join(values)
 
     def train(self, force=False):
@@ -100,12 +98,10 @@ class TrainModel:
                 pass
         proccessed_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
+        print(proccessed_data)
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
-        try:
-            tfidf_matrix = self.VECTORIZER.transform(
-                self.extract_keywords(tfidf_matrix))
-        except Exception as e:
-            print('ERROR: %s' % err)
+        tfidf_matrix = self.VECTORIZER.transform(
+            self.extract_keywords(tfidf_matrix))
         self.model = NearestNeighbors(n_neighbors=self.K_N_COUNT)
         self.model.fit(tfidf_matrix)
         joblib.dump(self.model, self.MODEL_NAME)
