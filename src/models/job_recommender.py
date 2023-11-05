@@ -70,13 +70,11 @@ class TrainModel:
 
     def extract_keywords(self, matrix):
         keywords = []
-        for vector in matrix.toarray():
-            # Get indices sorted by TF-IDF values
-            sorted_indices = vector.argsort()[-50:][::-1]
-            # Map indices to terms
+        for idx in range(matrix.shape[0]):
+            vector = matrix.getrow(idx)
+            sorted_indices = vector.toarray().ravel().argsort()[-50:][::-1]
             keywords.append(' '.join([self.VECTORIZER.get_feature_names_out()[i]
-                            for i in sorted_indices]))
-
+                                      for i in sorted_indices]))
         return keywords
 
     def obj_to_text(self, obj):
@@ -98,6 +96,7 @@ class TrainModel:
                 pass
         proccessed_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
+
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
         tfidf_matrix = self.VECTORIZER.transform(
             self.extract_keywords(tfidf_matrix))
