@@ -101,8 +101,11 @@ class TrainModel:
         proccessed_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
-        tfidf_matrix = self.VECTORIZER.transform(
-            self.extract_keywords(tfidf_matrix))
+        try:
+            tfidf_matrix = self.VECTORIZER.transform(
+                self.extract_keywords(tfidf_matrix))
+        except Exception as e:
+            print('ERROR: %s' % err)
         self.model = NearestNeighbors(n_neighbors=self.K_N_COUNT)
         self.model.fit(tfidf_matrix)
         joblib.dump(self.model, self.MODEL_NAME)
