@@ -12,7 +12,6 @@ def recommend_jobs():
         return jsonify({"msg": "Missing JSON in request"}), 400
     data = request.get_json()
     query = data.get('query', '')
-    print(query, '*********************')
     return jsonify({
         'jobs': jobs_recommender.predict(query)
     })

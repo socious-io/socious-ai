@@ -18,7 +18,7 @@ nltk.download('wordnet')
 
 
 class TrainModel:
-    K_N_COUNT = 10
+    K_N_COUNT = 8
     TEST_DATA_SELECT_PERCENT = 30
     STOP_WORDS = set(stopwords.words('english'))
     LEMMATIZER = WordNetLemmatizer()
@@ -79,7 +79,15 @@ class TrainModel:
         return keywords
 
     def obj_to_text(self, obj):
-        return ' '.join([obj[key] if key != 'id' and obj[key] is not None else '' for key in obj.keys()])
+        values = []
+        for key in obj.keys():
+            val = obj[key]
+            if key == 'id' or type(val) is not str or type(val) is not list:
+                continue
+            if type(val) is list:
+                val = ' '.join(val)
+            values.append(val)
+        return ' '.join(values)
 
     def train(self, force=False):
         if not force:
@@ -105,7 +113,6 @@ class TrainModel:
             query = [query]
 
         query_data = pd.DataFrame(query)
-
         proccessed_query_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in query_data.iterrows()]
 
