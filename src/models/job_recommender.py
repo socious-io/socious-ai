@@ -98,7 +98,6 @@ class TrainModel:
                 pass
         proccessed_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
-        print(proccessed_data)
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
         tfidf_matrix = self.VECTORIZER.transform(
             self.extract_keywords(tfidf_matrix))
