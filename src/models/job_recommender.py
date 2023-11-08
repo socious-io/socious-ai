@@ -1,5 +1,6 @@
 from random import sample
 import joblib
+from rake_nltk import Rake
 import pandas as pd
 from sklearn.neighbors import NearestNeighbors
 from transformers import T5ForConditionalGeneration, T5Tokenizer
@@ -18,6 +19,7 @@ nltk.download('wordnet')
 
 
 class TrainModel:
+    RAKE = Rake()
     K_N_COUNT = 8
     TEST_DATA_SELECT_PERCENT = 30
     STOP_WORDS = set(stopwords.words('english'))
@@ -53,7 +55,6 @@ class TrainModel:
         return text
 
     def preprocess_text(self, text):
-
         text = self.clean_text(text)
         word_tokens = word_tokenize(text)
         # Lemmatization
@@ -66,16 +67,9 @@ class TrainModel:
             word for word in words_without_punct if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text).lower()
+        self.RAKE.extract_keywords_from_text(text)
+        text = ' '.join(self.RAKE.get_ranked_phrases())
         return self.clean_text(text)
-
-    def extract_keywords(self, matrix):
-        keywords = []
-        for idx in range(matrix.shape[0]):
-            vector = matrix.getrow(idx)
-            sorted_indices = vector.toarray().ravel().argsort()[-50:][::-1]
-            keywords.append(' '.join([self.VECTORIZER.get_feature_names_out()[i]
-                                      for i in sorted_indices]))
-        return keywords
 
     def obj_to_text(self, obj):
         values = [
@@ -98,8 +92,6 @@ class TrainModel:
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
 
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
-        tfidf_matrix = self.VECTORIZER.transform(
-            self.extract_keywords(tfidf_matrix))
         self.model = NearestNeighbors(n_neighbors=self.K_N_COUNT)
         self.model.fit(tfidf_matrix)
         joblib.dump(self.model, self.MODEL_NAME)
@@ -110,13 +102,11 @@ class TrainModel:
             query = [query]
 
         query_data = pd.DataFrame(query)
+
         proccessed_query_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in query_data.iterrows()]
 
         query_matrix = self.VECTORIZER.transform(proccessed_query_data)
-        query_matrix = self.VECTORIZER.transform(
-            self.extract_keywords(query_matrix))
-
         _, indices = self.model.kneighbors(query_matrix)
         elements = list(dict.fromkeys(
             element for sublist in indices for element in sublist))
