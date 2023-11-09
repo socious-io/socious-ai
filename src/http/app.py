@@ -1,6 +1,7 @@
 import importlib
 from flask import Flask, render_template
 from src.config import config
+import threading
 
 app = Flask(__name__)
 
@@ -20,7 +21,8 @@ def installing_blueprints():
     for api in config.apps:
         a = importlib.import_module('src.http.%s' % api)
         app.register_blueprint(a.mod)
-        a.ai_model.train()
+        for model in a.ai_models:
+            threading.Thread(target=model.train).start()
 
 
 @app.route('/')

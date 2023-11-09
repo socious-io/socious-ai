@@ -14,6 +14,7 @@ class Config:
         self.idealist_token = os.environ.get('IDEALIST_TOKEN')
         self.nats_url = os.environ.get('NATS_URL')
         self.database_url = os.environ.get('DATABASE_URL')
+        self.admin_token = os.environ.get('ADMIN_TOKEN')
         self.sql_dir = os.path.join(os.getcwd(), 'src/core/sql')
         self.http_proxy = dict(
             http=os.environ.get('HTTP_PROXY'),
