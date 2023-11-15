@@ -6,7 +6,7 @@ class TalentRecommender(TrainModel):
 
     @property
     def name(self):
-        return 'talen_recommender'
+        return 'talents_recommender'
 
     def get_train_model(self):
         return NearestNeighbors(n_neighbors=8)
