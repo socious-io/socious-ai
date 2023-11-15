@@ -73,7 +73,7 @@ class TrainModel:
         word_tokens = word_tokenize(text)
         # Lemmatization
         lemmatized_words = [self.LEMMATIZER.lemmatize(
-            word) for word in word_tokens]
+            word) for word in word_tokens if word]
         # Remove punctuation
         words_without_punct = [
             word for word in lemmatized_words if word not in string.punctuation]
