@@ -62,5 +62,5 @@ def recommend_orgs():
     data = request.get_json()
     query = data.get('query', '')
     return jsonify({
-        'talents': orgs_recommender.predict(query)
+        'orgs': orgs_recommender.predict(query)
     })
