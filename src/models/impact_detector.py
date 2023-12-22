@@ -1,101 +1,80 @@
-import hashlib
-from multiprocessing import cpu_count
-import pandas as pd
-import numpy as np
-from bs4 import BeautifulSoup
+from random import sample
 import joblib
-from tqdm import tqdm
-from sklearn.model_selection import ParameterGrid
-from transformers import T5ForConditionalGeneration, T5Tokenizer
-from sklearn.feature_extraction.text import TfidfVectorizer
+from rake_nltk import Rake
+import pandas as pd
 from sklearn.svm import OneClassSVM
-from sklearn.metrics import accuracy_score
-from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
+from sklearn.feature_extraction.text import TfidfVectorizer
+from sklearn.metrics import accuracy_score
 from nltk.tokenize import word_tokenize
-import nltk
 import re
-from langdetect import detect
-from schema import Schema, And, Use
-from sklearn.metrics import classification_report
+from nltk.corpus import stopwords
+import nltk
 import string
-
+import numpy as np
 
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
 
 
-class ImpactDetector:
+class ImpactDetectorModel:
+    RAKE = Rake()
+
+    K_N_COUNT = 8
+
+    STATUS_INIT = 'init'
+    STATUS_TRAINING = 'training'
+    STATUS_TRAINED = 'trained'
+
+    TEST_DATA_SELECT_PERCENT = 30
     STOP_WORDS = set(stopwords.words('english'))
     LEMMATIZER = WordNetLemmatizer()
-    PROCCESSED_TEXTS_DB = 'processed_texts.db'
-    CLEANER = re.compile('<.*?>|&([a-z0-9]+|#[0-9]{1,6}|#x[0-9a-f]{1,6});')
-
-    SUMMARIZER_MODEL_NAME = 't5-small'
-    TOKENIZER = T5Tokenizer.from_pretrained(SUMMARIZER_MODEL_NAME)
-    SUMMARIZER = T5ForConditionalGeneration.from_pretrained(
-        SUMMARIZER_MODEL_NAME)
 
     VECTORIZER = TfidfVectorizer()
-    MODEL_NAME = 'impact_jobs_detector.pkl'
-    VECTORIZER_NAME = 'tfidf_vectorizer.pkl'
 
-    JOB_SCHEMA = Schema({
-        'title': And(str, len),
-        'description':  And(str, len),
-        'org_name': Use(str),
-        'org_description':  Use(str),
-        # 'skills': Or(None, [And(str, len)])
-    })
+    @property
+    def name(self):
+        return 'impact_job_detector'
 
-    def __init__(self, jobs, test_jobs) -> None:
-        self.test_jobs = pd.DataFrame(test_jobs)
+    @property
+    def model_name(self):
+        return '%s_model.pkl' % self.name
+
+    @property
+    def vectorizer_name(self):
+        return '%s_vectorizer.pkl' % self.name
+
+    def __init__(self, data_loader_func) -> None:
+        self.data_loader_func = data_loader_func
         self.accuracy = 0
-        self.validate_jobs(jobs)
-        self.jobs = pd.DataFrame(jobs)
         self.model = None
+        self.status = self.STATUS_INIT
 
-    def validate_jobs(self, jobs):
-        validated = Schema([self.JOB_SCHEMA]).validate(jobs)
-        if not validated:
-            raise Exception('not valid job')
+    def load_data(self):
+        data = self.data_loader_func()
+        print('Fetched %d of data for %s' % (len(data), self.name))
+        length = len(data)
+        if length < 10:
+            raise ValueError('data length is too low')
+        test_sample_count = int(length * self.TEST_DATA_SELECT_PERCENT / 100)
+        train_sample_count = length - test_sample_count
+        self.data = pd.DataFrame(sample(data, train_sample_count))
+        self.test_data = pd.DataFrame(sample(data, test_sample_count))
 
-    def convert_job_to_text(self, job):
-        return '%s %s %s %s %s' % (
-            job.get('org_name', ''),
-            job.get('org_description', ''),
-            job['title'],
-            job['description'],
-            ' '.join(job.get('skills') or [])
-        )
-
-    def create_unique_id(self, text):
-        return hashlib.sha256(text.encode()).hexdigest()
-
-    def summaries(self, text):
-        if len(text) < 100:
-            return text
-
-        inputs = self.TOKENIZER.encode(
-            text, return_tensors="pt", max_length=512)
-        outputs = self.SUMMARIZER.generate(
-            inputs, max_length=150, min_length=40, length_penalty=2.0, num_beams=4, early_stopping=True)
-        return self.TOKENIZER.decode(outputs[0])
-
-    def clean_tags(self, text):
-        soup = BeautifulSoup(text, "html.parser")
-        cleaned_html = soup.get_text()
-        TAG_RE = re.compile(r'<[^>]+>')
-        return TAG_RE.sub('', cleaned_html)
+    def clean_text(self, text):
+        text = re.sub('<.*?>', '', text)  # Remove HTML tags
+        text = re.sub('[^\w\s]', '', text)  # Remove punctuation
+        text = text.lower()  # Convert to lowercase
+        text = re.sub(r"_+", " ", text)
+        return text
 
     def preprocess_text(self, text):
-        text = self.clean_tags(text)
-        text = re.sub(self.CLEANER, '', text)
+        text = self.clean_text(text)
         word_tokens = word_tokenize(text)
         # Lemmatization
         lemmatized_words = [self.LEMMATIZER.lemmatize(
-            word) for word in word_tokens]
+            word) for word in word_tokens if word]
         # Remove punctuation
         words_without_punct = [
             word for word in lemmatized_words if word not in string.punctuation]
@@ -103,107 +82,66 @@ class ImpactDetector:
             word for word in words_without_punct if word.casefold() not in self.STOP_WORDS]
 
         text = " ".join(filtered_text).lower()
-        processed = None
-        try:
-            processed = self.summaries(text)
-        except Exception as e:
-            print('Summerize error %s ' % e)
-            processed = text
+        self.RAKE.extract_keywords_from_text(text)
+        text = ' '.join(self.RAKE.get_ranked_phrases())
+        return self.clean_text(text)
 
-        return self.clean_tags(processed)
+    def obj_to_text(self, obj):
+        values = [
+            ' '.join(val) if isinstance(val, list) else val
+            for key, val in obj.items()
+            if key != 'id' and (isinstance(val, str) or isinstance(val, list))
+        ]
+        return ' '.join(values)
 
-    def is_english(self, text):
-        try:
-            language = detect(text)
-        except Exception:
-            return False
-        if language == 'en':
-            return True
-        return False
-
-    def apply_parallel(self, df, func):
-        return joblib.Parallel(n_jobs=cpu_count())(joblib.delayed(func)(i) for i in df)
+    def get_train_model(self):
+        return OneClassSVM(gamma='auto')
 
     def train(self, force=False):
+        if self.status == self.STATUS_TRAINING:
+            return
+
+        self.status = self.STATUS_TRAINING
+        self.load_data()
         if not force:
             try:
-                model = joblib.load(self.MODEL_NAME)
-                self.VECTORIZER = joblib.load(self.VECTORIZER_NAME)
+                model = joblib.load(self.model_name)
+                self.VECTORIZER = joblib.load(self.vectorizer_name)
                 self.model = model
-                self.evaluate()
+                self.status = self.STATUS_TRAINED
+                self.get_score()
                 return
             except Exception:
                 pass
 
-        print('Start training with %d of jobs ....' % len(self.jobs))
-        self.jobs['description'] = self.apply_parallel(
-            self.jobs['description'], self.preprocess_text)
+        proccessed_data = [self.preprocess_text(
+            self.obj_to_text(item)) for _, item in self.data.iterrows()]
 
-        self.jobs['org_description'] = self.apply_parallel(
-            self.jobs['org_description'], self.preprocess_text)
+        tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
+        self.model = self.get_train_model()
+        self.model.fit(tfidf_matrix)
+        self.get_score()
+        joblib.dump(self.model, self.model_name)
+        joblib.dump(self.VECTORIZER, self.vectorizer_name)
+        self.status = self.STATUS_TRAINED
 
-        """         result = joblib.Parallel(n_jobs=10, verbose=10)(
-            joblib.delayed(self.preprocess)(job) for job in tqdm(self.jobs))
+    def get_score(self):
+        proccessed_query_data = [self.preprocess_text(
+            self.obj_to_text(item)) for _, item in self.test_data.iterrows()]
+        query_matrix = self.VECTORIZER.transform(proccessed_query_data)
+        predictions = self.model.predict(query_matrix)
+        self.accuracy = accuracy_score([1 for _ in predictions], predictions)
+        print('------------- %s accuracy is %f ------------' %
+              (self.name, self.accuracy))
 
-        corpus = list(filter(self.is_english, result))
-        print('%d of jobs detected as EN to train' % len(corpus))
-        # Vectorize the text
-        self.VECTORIZER.fit(corpus)
-        dataset = self.VECTORIZER.transform(corpus)
-        param_grid = {'nu': [0.01, 0.1, 0.3, 0.5, 0.7, 0.9],
-                      'kernel': ['rbf', 'linear', 'poly', 'sigmoid'],
-                      'gamma': [0.01, 0.03, 0.1, 0.3, 1, 3, 10],
-                      'degree': [2, 3, 4, 5]
-                      }
+    def predict(self, query):
+        if not isinstance(query, (list, tuple, np.ndarray)):
+            query = [query]
 
-        # Do the grid search manually
-        best_score = float('inf')
-        best_params = None
-        for params in ParameterGrid(param_grid):
-            svm = OneClassSVM(**params)
-            svm.fit(dataset)
-            score = self.anomaly_score(dataset, svm)
-            if score < best_score:
-                best_score = score
-                best_params = params
+        query_data = pd.DataFrame(query)
 
-        self.model = OneClassSVM(**best_params)
-        self.model.fit(dataset)
+        proccessed_query_data = [self.preprocess_text(
+            self.obj_to_text(item)) for _, item in query_data.iterrows()]
 
-        joblib.dump(self.model, self.MODEL_NAME)
-        joblib.dump(self.VECTORIZER, self.VECTORIZER_NAME)
-        self.evaluate() """
-
-    def anomaly_score(self, X, estimator):
-        decision_function = estimator.decision_function(X)
-        return np.mean(decision_function)
-
-    def evaluate(self):
-        result = joblib.Parallel(n_jobs=10, verbose=10)(
-            joblib.delayed(self.preprocess_text(job) for job in tqdm(self.test_jobs)))
-        corpus = list(filter(self.is_english, result))
-        results = self.VECTORIZER.transform(corpus)
-        predictions = self.model.predict(results)
-
-        # Use classification report instead of accuracy
-        report = classification_report([1]*len(corpus), predictions)
-        print(report)
-
-        self.accuracy = accuracy_score([1]*len(corpus), predictions)
-        # Write the report to a file
-        with open("classification_report.txt", "w") as f:
-            f.write(report)
-            f.write("\nAccuracy: " + str(self.accuracy))
-
-    def is_impact_job(self, job):
-        if type(job) == dict:
-            self.validate_jobs([job])
-            text_job = self.convert_job_to_text(job)
-        else:
-            text_job = job
-
-        text_job = self.preprocess_text(job)
-        print(text_job, '---------------------@@@-')
-        new = self.VECTORIZER.transform([text_job])
-        prediction = self.model.predict(new)[0]
-        return prediction == 1
+        query_matrix = self.VECTORIZER.transform(proccessed_query_data)
+        return self.model.predict(query_matrix)

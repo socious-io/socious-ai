@@ -2,7 +2,6 @@ from random import sample
 import joblib
 from rake_nltk import Rake
 import pandas as pd
-from sklearn.neighbors import NearestNeighbors
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from nltk.tokenize import word_tokenize

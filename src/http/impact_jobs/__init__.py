@@ -3,4 +3,6 @@ from .models import impact_detector
 
 
 mod = bp
-ai_model = impact_detector
+ai_models = [
+    impact_detector
+]

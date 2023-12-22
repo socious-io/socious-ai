@@ -2,22 +2,30 @@ import requests
 from flask import Blueprint, request, jsonify, render_template
 from .models import impact_detector
 
-bp = Blueprint('impact_jobs', __name__, url_prefix='/impacts')
+bp = Blueprint('impacts', __name__, url_prefix='/impacts')
 
 TMP = 'impacts.html'
 
 
-@bp.route('', methods=['GET'])
-def home():
-    return render_template(TMP, **{'form': {}, 'accuracy': impact_detector.accuracy})
+@bp.route('/jobs/accuracy', methods=['GET'])
+def accuracy():
+    return jsonify({
+        'accuracy': impact_detector.accuracy
+    })
 
 
-@bp.route('/verify.json', methods=['POST'])
+@bp.route('/jobs', methods=['POST'])
 def verify():
-    try:
-        return jsonify({'impact': impact_detector.is_impact_job(request.json)})
-    except Exception as err:
-        return jsonify({'error': str(err)}), 400
+    if impact_detector.status != impact_detector.STATUS_TRAINED:
+        return jsonify({"error": "impact detector is not ready to use"}), 400
+    if not request.is_json:
+        return jsonify({"error": "Missing JSON in request"}), 400
+    data = request.get_json()
+    query = data.get('query', '')
+
+    return jsonify({
+        'predict': [False if item == -1 else True for item in impact_detector.predict(query)]
+    })
 
 
 @bp.route('/verify.html', methods=['POST'])
