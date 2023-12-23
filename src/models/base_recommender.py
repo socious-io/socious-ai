@@ -1,6 +1,6 @@
 from random import sample
 import joblib
-from rake_nltk import Rake
+import yake
 import pandas as pd
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -17,7 +17,7 @@ nltk.download('wordnet')
 
 
 class TrainModel:
-    RAKE = Rake()
+    YAKE = yake.KeywordExtractor(n=3, dedupLim=0.9, top=50, features=None)
 
     K_N_COUNT = 8
 
@@ -69,20 +69,10 @@ class TrainModel:
 
     def preprocess_text(self, text):
         text = self.clean_text(text)
-        word_tokens = word_tokenize(text)
-        # Lemmatization
-        lemmatized_words = [self.LEMMATIZER.lemmatize(
-            word) for word in word_tokens if word]
-        # Remove punctuation
-        words_without_punct = [
-            word for word in lemmatized_words if word not in string.punctuation]
-        filtered_text = [
-            word for word in words_without_punct if word.casefold() not in self.STOP_WORDS]
-
-        text = " ".join(filtered_text).lower()
-        self.RAKE.extract_keywords_from_text(text)
-        text = ' '.join(self.RAKE.get_ranked_phrases())
-        return self.clean_text(text)
+        keywords = self.YAKE.extract_keywords(text)
+        result = ' '.join([k[0] for k in keywords])
+        words = set(result.split())
+        return ' '.join(words)
 
     def obj_to_text(self, obj):
         values = [

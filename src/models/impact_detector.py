@@ -1,16 +1,14 @@
 from random import sample
 import joblib
-from rake_nltk import Rake
+import yake
 import pandas as pd
 from sklearn.svm import OneClassSVM
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score
-from nltk.tokenize import word_tokenize
 import re
 from nltk.corpus import stopwords
 import nltk
-import string
 import numpy as np
 
 nltk.download('punkt')
@@ -19,7 +17,7 @@ nltk.download('wordnet')
 
 
 class ImpactDetectorModel:
-    RAKE = Rake()
+    YAKE = yake.KeywordExtractor(n=3, dedupLim=0.9, top=50, features=None)
 
     K_N_COUNT = 8
 
@@ -27,7 +25,7 @@ class ImpactDetectorModel:
     STATUS_TRAINING = 'training'
     STATUS_TRAINED = 'trained'
 
-    TEST_DATA_SELECT_PERCENT = 30
+    TEST_DATA_SELECT_PERCENT = 10
     STOP_WORDS = set(stopwords.words('english'))
     LEMMATIZER = WordNetLemmatizer()
 
@@ -71,20 +69,10 @@ class ImpactDetectorModel:
 
     def preprocess_text(self, text):
         text = self.clean_text(text)
-        word_tokens = word_tokenize(text)
-        # Lemmatization
-        lemmatized_words = [self.LEMMATIZER.lemmatize(
-            word) for word in word_tokens if word]
-        # Remove punctuation
-        words_without_punct = [
-            word for word in lemmatized_words if word not in string.punctuation]
-        filtered_text = [
-            word for word in words_without_punct if word.casefold() not in self.STOP_WORDS]
-
-        text = " ".join(filtered_text).lower()
-        self.RAKE.extract_keywords_from_text(text)
-        text = ' '.join(self.RAKE.get_ranked_phrases())
-        return self.clean_text(text)
+        keywords = self.YAKE.extract_keywords(text)
+        result = ' '.join([k[0] for k in keywords])
+        words = set(result.split())
+        return ' '.join(words)
 
     def obj_to_text(self, obj):
         values = [
