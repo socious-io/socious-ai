@@ -101,9 +101,11 @@ class ImpactDetectorModel:
                 return
             except Exception:
                 pass
-
+        print('-----------  impact job detector train start processing texts ----------- ')
         proccessed_data = [self.preprocess_text(
             self.obj_to_text(item)) for _, item in self.data.iterrows()]
+
+        print('-----------  impact job detector train start training ----------- ')
 
         tfidf_matrix = self.VECTORIZER.fit_transform(proccessed_data)
         self.model = self.get_train_model()
@@ -112,6 +114,7 @@ class ImpactDetectorModel:
         joblib.dump(self.model, self.model_name)
         joblib.dump(self.VECTORIZER, self.vectorizer_name)
         self.status = self.STATUS_TRAINED
+        print('----------- impact job detector train done ---------------')
 
     def get_score(self):
         proccessed_query_data = [self.preprocess_text(
