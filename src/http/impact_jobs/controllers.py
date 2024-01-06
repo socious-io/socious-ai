@@ -24,7 +24,7 @@ def verify():
     query = data.get('query', '')
 
     return jsonify({
-        'predict': [False if item == -1 else True for item in impact_detector.predict(query)]
+        'predict': impact_detector.predict(query)
     })
 
 

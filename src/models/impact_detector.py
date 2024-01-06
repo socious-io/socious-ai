@@ -3,6 +3,8 @@ import joblib
 import yake
 import pandas as pd
 from sklearn.svm import OneClassSVM
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.neighbors import NearestNeighbors
 from nltk.stem import WordNetLemmatizer
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics import accuracy_score
@@ -50,7 +52,6 @@ class ImpactDetectorModel:
 
     def load_data(self):
         data = self.data_loader_func()
-        print('Fetched %d of data for %s' % (len(data), self.name))
         length = len(data)
         if length < 10:
             raise ValueError('data length is too low')
@@ -58,6 +59,8 @@ class ImpactDetectorModel:
         train_sample_count = length - test_sample_count
         self.data = pd.DataFrame(sample(data, train_sample_count))
         self.test_data = pd.DataFrame(sample(data, test_sample_count))
+        print(
+            f'Fetched {len(data)} of total data for ({len(self.data)}, {len(self.test_data)}) {self.name} ')
 
     def clean_text(self, text):
         text = re.sub('<.*?>', '', text)  # Remove HTML tags
@@ -75,7 +78,7 @@ class ImpactDetectorModel:
         return ' '.join(values)
 
     def get_train_model(self):
-        return OneClassSVM(gamma='auto')
+        return NearestNeighbors(n_neighbors=2)
 
     def parallel_preprocess(self, data):
 
@@ -139,9 +142,7 @@ class ImpactDetectorModel:
         print('-----------  impact job detector train start processing texts ----------- ')
         data_items = [item for _, item in self.data.iterrows()]
         processed_data = self.parallel_preprocess(data_items)
-
         print('-----------  impact job detector start training ----------- ')
-
         tfidf_matrix = self.VECTORIZER.fit_transform(processed_data)
         self.model = self.get_train_model()
         self.model.fit(tfidf_matrix)
@@ -151,12 +152,17 @@ class ImpactDetectorModel:
         self.status = self.STATUS_TRAINED
         print('----------- impact job detector train done ---------------')
 
+    def predictions(self, distances):
+        return [min(dis) < 1 for dis in distances]
+
     def get_score(self):
         data_items = [item for _, item in self.test_data.iterrows()]
         processed_query_data = self.parallel_preprocess(data_items)
         query_matrix = self.VECTORIZER.transform(processed_query_data)
-        predictions = self.model.predict(query_matrix)
-        self.accuracy = accuracy_score([1 for _ in predictions], predictions)
+        distances, _ = self.model.kneighbors(query_matrix)
+
+        self.accuracy = accuracy_score(
+            [True for _ in data_items], self.predictions(distances))
         print('------------- %s accuracy is %f ------------' %
               (self.name, self.accuracy))
 
@@ -169,4 +175,6 @@ class ImpactDetectorModel:
         processed_query_data = self.parallel_preprocess(data_items)
 
         query_matrix = self.VECTORIZER.transform(processed_query_data)
-        return self.model.predict(query_matrix)
+        distances, _ = self.model.kneighbors(query_matrix)
+
+        return self.predictions(distances)
