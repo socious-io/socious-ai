@@ -22,9 +22,8 @@ def verify():
         return jsonify({"error": "Missing JSON in request"}), 400
     data = request.get_json()
     query = data.get('query', '')
-
     return jsonify({
-        'predict': impact_detector.predict(query)
+        'predicts': [1 if item else 0 for item in impact_detector.predict(query)]
     })
 
 
