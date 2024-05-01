@@ -120,15 +120,19 @@ class TrainModel:
         self.status = self.STATUS_TRAINING
         self.load_data()
         if not force:
+            print(f'{self.name} try to train with vector data')
             try:
                 model = joblib.load(self.model_name)
                 self.VECTORIZER = joblib.load(self.vectorizer_name)
                 self.model = model
                 self.status = self.STATUS_TRAINED
+                print(f'{self.name} trained with vector successfully')
                 return
             except Exception:
+                print(f'{self.name} trained with vector failed')
                 pass
 
+        print(f'{self.name} start scratch training')
         data_items = [item for _, item in self.data.iterrows()]
         processed_data = self.parallel_preprocess(data_items)
 
@@ -138,6 +142,19 @@ class TrainModel:
         joblib.dump(self.model, self.model_name)
         joblib.dump(self.VECTORIZER, self.vectorizer_name)
         self.status = self.STATUS_TRAINED
+        print(f'{self.name} trained successfully')
+
+    def predict_by_ids(self, ids):
+        if not isinstance(ids, (list, tuple, np.ndarray)):
+            ids = [ids]
+        ids_data = self.data[self.data['id'].isin(ids)]
+        ids_items = [item for _, item in ids_data.iterrows()]
+        processed_data = self.parallel_preprocess(ids_items)
+        query_matrix = self.VECTORIZER.transform(processed_data)
+        _, indices = self.model.kneighbors(query_matrix)
+        elements = list(dict.fromkeys(
+            element for sublist in indices for element in sublist))
+        return list(self.data.iloc[elements]['id'].values)
 
     def predict(self, query):
         if not isinstance(query, (list, tuple, np.ndarray)):
@@ -146,7 +163,6 @@ class TrainModel:
         query_data = pd.DataFrame(query)
         data_items = [item for _, item in query_data.iterrows()]
         processed_query_data = self.parallel_preprocess(data_items)
-
         query_matrix = self.VECTORIZER.transform(processed_query_data)
         _, indices = self.model.kneighbors(query_matrix)
         elements = list(dict.fromkeys(

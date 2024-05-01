@@ -35,8 +35,19 @@ def recommend_jobs():
         return jsonify({"error": "Missing JSON in request"}), 400
     data = request.get_json()
     query = data.get('query', '')
+    predicts = jobs_recommender.predict(query)
+    interests = data.get('intrests', None)
+    if interests:
+        interests_predicts = jobs_recommender.predict_by_ids(interests)
+        predicts = list(set(predicts + interests_predicts))
+    excludes = data.get('excludes', None)
+    if excludes:
+        excludes_predicts = jobs_recommender.predict_by_ids(excludes)
+        excludes_predicts += excludes
+        predicts = [item for item in predicts if item not in excludes_predicts]
+
     return jsonify({
-        'jobs': jobs_recommender.predict(query)
+        'jobs': predicts
     })
 
 
