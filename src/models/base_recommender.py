@@ -23,6 +23,7 @@ class TrainModel:
     STATUS_INIT = 'init'
     STATUS_TRAINING = 'training'
     STATUS_TRAINED = 'trained'
+    STATUS_RETRAINING = 'retraining'
 
     TEST_DATA_SELECT_PERCENT = 30
     STOP_WORDS = set(stopwords.words('english'))
@@ -117,9 +118,14 @@ class TrainModel:
         if self.status == self.STATUS_TRAINING:
             return
 
-        self.status = self.STATUS_TRAINING
+        if self.status == self.STATUS_TRAINED:
+            self.status = self.STATUS_RETRAINING
+        else:
+            self.status = self.STATUS_TRAINING
+
         self.load_data()
-        if not force:
+
+        if not force and self.status != self.STATUS_RETRAINING:
             print(f'{self.name} try to train with vector data')
             try:
                 model = joblib.load(self.model_name)

@@ -29,7 +29,7 @@ def retrain():
 
 @bp.route('/jobs', methods=['POST'])
 def recommend_jobs():
-    if jobs_recommender.status != jobs_recommender.STATUS_TRAINED:
+    if jobs_recommender.status == jobs_recommender.STATUS_TRAINING:
         return jsonify({"error": "recommender is not ready to use"}), 400
     if not request.is_json:
         return jsonify({"error": "Missing JSON in request"}), 400
@@ -53,7 +53,7 @@ def recommend_jobs():
 
 @bp.route('/talents', methods=['POST'])
 def recommend_talents():
-    if talents_recommender.status != talents_recommender.STATUS_TRAINED:
+    if talents_recommender.status == talents_recommender.STATUS_TRAINING:
         return jsonify({"error": "recommender is not ready to use"}), 400
     if not request.is_json:
         return jsonify({"error": "Missing JSON in request"}), 400
@@ -66,7 +66,7 @@ def recommend_talents():
 
 @bp.route('/orgs', methods=['POST'])
 def recommend_orgs():
-    if orgs_recommender.status != orgs_recommender.STATUS_TRAINED:
+    if orgs_recommender.status == orgs_recommender.STATUS_TRAINING:
         return jsonify({"error": "recommender is not ready to use"}), 400
     if not request.is_json:
         return jsonify({"error": "Missing JSON in request"}), 400
