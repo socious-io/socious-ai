@@ -153,9 +153,9 @@ class TrainModel:
     def predict_by_ids(self, ids):
         if not isinstance(ids, (list, tuple, np.ndarray)):
             ids = [ids]
-        if len(ids) < 1:
-            return []
         ids_data = self.data[self.data['id'].isin(ids)]
+        if len(ids_data) < 1:
+            return []
         ids_items = [item for _, item in ids_data.iterrows()]
         processed_data = self.parallel_preprocess(ids_items)
         query_matrix = self.VECTORIZER.transform(processed_data)
