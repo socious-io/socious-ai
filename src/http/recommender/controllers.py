@@ -37,11 +37,11 @@ def recommend_jobs():
     query = data.get('query', '')
     predicts = jobs_recommender.predict(query)
     interests = data.get('intrests', None)
-    if interests:
+    if interests and len(interests) > 0:
         interests_predicts = jobs_recommender.predict_by_ids(interests)
         predicts = list(set(predicts + interests_predicts))
     excludes = data.get('excludes', None)
-    if excludes:
+    if excludes and len(excludes) > 0:
         excludes_predicts = jobs_recommender.predict_by_ids(excludes)
         excludes_predicts += excludes
         predicts = [item for item in predicts if item not in excludes_predicts]
