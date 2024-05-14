@@ -153,6 +153,8 @@ class TrainModel:
     def predict_by_ids(self, ids):
         if not isinstance(ids, (list, tuple, np.ndarray)):
             ids = [ids]
+        if len(ids) == 0:
+            return []
         ids_data = self.data[self.data['id'].isin(ids)]
         ids_items = [item for _, item in ids_data.iterrows()]
         processed_data = self.parallel_preprocess(ids_items)
