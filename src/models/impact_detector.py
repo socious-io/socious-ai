@@ -34,7 +34,7 @@ class ImpactDetectorModel:
 
     @property
     def name(self):
-        return 'impact_job_detector'
+        return 'impact_detector'
 
     @property
     def model_name(self):
@@ -139,10 +139,11 @@ class ImpactDetectorModel:
                 return
             except Exception:
                 pass
-        print('-----------  impact job detector train start processing texts ----------- ')
+        print(
+            f'-----------  {self.name} train start processing texts ---------- ')
         data_items = [item for _, item in self.data.iterrows()]
         processed_data = self.parallel_preprocess(data_items)
-        print('-----------  impact job detector start training ----------- ')
+        print(f'-----------  {self.name} start training ----------- ')
         tfidf_matrix = self.VECTORIZER.fit_transform(processed_data)
         self.model = self.get_train_model()
         self.model.fit(tfidf_matrix)
@@ -150,7 +151,7 @@ class ImpactDetectorModel:
         joblib.dump(self.model, self.model_name)
         joblib.dump(self.VECTORIZER, self.vectorizer_name)
         self.status = self.STATUS_TRAINED
-        print('----------- impact job detector train done ---------------')
+        print(f'----------- {self.name} train done ---------------')
 
     def predictions(self, distances):
         return [min(dis) < 1 for dis in distances]
@@ -163,8 +164,7 @@ class ImpactDetectorModel:
 
         self.accuracy = accuracy_score(
             [True for _ in data_items], self.predictions(distances))
-        print('------------- %s accuracy is %f ------------' %
-              (self.name, self.accuracy))
+        print(f'---- {self.name} accuracy is {self.accuracy} ------')
 
     def predict(self, query):
         if not isinstance(query, (list, tuple, np.ndarray)):
