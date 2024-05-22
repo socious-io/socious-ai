@@ -7,13 +7,14 @@ def jobs():
   SELECT p.title, p.description, org.name as org_name, org.description as org_description 
   FROM projects p join organizations org on org.id=p.identity_id
   WHERE org.name IS NOT NULL AND org.name <> ''  AND org.verified_impact = true ORDER BY p.created_at
-''', limit=100000)
+''', limit=10000)
 
 
 def orgs():
     return DB.fetch_lazy('''
-  SELECT id, bio, description, culture, social_causes, country FROM organizations WHERE verified_impact=true ORDER BY created_at DESC
-''', limit=10000)
+  SELECT id, bio, description, culture, social_causes, country FROM organizations WHERE 
+                         verified_impact=true AND (description IS NOT NULL OR bio IS NOT NULL) ORDER BY created_at DESC
+''', limit=2000)
 
 
 def impact_detector(name):

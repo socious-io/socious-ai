@@ -24,7 +24,10 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
     def __init__(self):
         self.knn_model = NearestNeighbors(n_neighbors=8)
         self.svm_model = OneClassSVM()
-        self.mean = 0
+        self.max_pair = ()
+        self.max_distance = 0
+        self.svm_score = 0
+        self.threshhold = 15
 
     def fit(self, X, y=None):
         # Fit both models on the training data
@@ -32,20 +35,39 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
         self.svm_model.fit(X)
         return self
 
+    def max_distance_between_points(self, points):
+        max_distance = 0
+        pair = ()
+        num_points = len(points)
+        for i in range(num_points):
+            for j in range(i + 1, num_points):
+                distance = np.linalg.norm(points[i] - points[j])
+                if distance > max_distance:
+                    max_distance = distance
+                    pair = (points[i], points[j])
+        return pair, max_distance
+
     def predict(self, X, learn=False):
         # Predict outlier scores using both models
-        knn_scores = -self.knn_model.kneighbors(X)[0].max(axis=1)
+        distances, _ = self.knn_model.kneighbors(X)
         svm_scores = self.svm_model.decision_function(X)
-
         # Combine scores using simple voting
-        combined_scores = np.mean([knn_scores, svm_scores], axis=0)
+        mean_scores = np.mean(svm_scores)
 
         if learn:
-            self.mean = np.mean(combined_scores)
+            pairs, distance = self.max_distance_between_points(distances)
+            self.max_pair = pairs
+            self.max_distance = distance
+            self.svm_score = mean_scores
+        predictions = []
 
-        # Convert scores to binary predictions (1 for outliers, 0 for inliers)
-        predictions = [
-            1 if abs(c) <= self.mean else 0 for c in combined_scores]
+        for i, item in enumerate(svm_scores):
+            _, distance = self.max_distance_between_points(
+                distances[i] + self.max_pair)
+            score = abs(self.max_distance - distance) + \
+                abs(self.svm_score - item)
+            predictions.append(score <= 16)
+
         return predictions
 
 
