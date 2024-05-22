@@ -14,7 +14,7 @@ def orgs():
     return DB.fetch_lazy('''
   SELECT id, bio, description, culture, social_causes, country FROM organizations WHERE 
                          verified_impact=true AND (description IS NOT NULL OR bio IS NOT NULL) ORDER BY created_at DESC
-''', limit=2000)
+''', limit=1000)
 
 
 def impact_detector(name):

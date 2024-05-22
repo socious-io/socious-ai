@@ -27,7 +27,7 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
         self.max_pair = ()
         self.max_distance = 0
         self.svm_score = 0
-        self.threshhold = 15
+        self.threshhold = 0
 
     def fit(self, X, y=None):
         # Fit both models on the training data
@@ -59,16 +59,18 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
             self.max_pair = pairs
             self.max_distance = distance
             self.svm_score = mean_scores
-        predictions = []
 
+        scores = []
         for i, item in enumerate(svm_scores):
             _, distance = self.max_distance_between_points(
                 distances[i] + self.max_pair)
-            score = abs(self.max_distance - distance) + \
-                abs(self.svm_score - item)
-            predictions.append(score <= 16)
+            scores.append((abs(self.max_distance - distance) +
+                          abs(self.svm_score - item)))
 
-        return predictions
+        if learn:
+            self.threshhold = np.mean(scores)
+
+        return [1 if s <= self.threshhold else 0 for s in scores]
 
 
 class ImpactDetectorModel:
