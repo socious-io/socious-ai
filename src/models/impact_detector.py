@@ -52,23 +52,22 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
         distances, _ = self.knn_model.kneighbors(X)
         svm_scores = self.svm_model.decision_function(X)
         # Combine scores using simple voting
-        mean_scores = np.mean(svm_scores)
 
         if learn:
             pairs, distance = self.max_distance_between_points(distances)
             self.max_pair = pairs
             self.max_distance = distance
-            self.svm_score = mean_scores
+            self.svm_score = np.mean(svm_scores)
 
         scores = []
         for i, item in enumerate(svm_scores):
             _, distance = self.max_distance_between_points(
                 distances[i] + self.max_pair)
-            scores.append((abs(self.max_distance - distance) +
-                          abs(self.svm_score - item)))
+            scores.append((10 - abs(self.max_distance - distance)) + item)
 
         if learn:
-            self.threshhold = np.mean(scores)
+            self.threshhold = np.mean(
+                scores) + ((np.max(scores) - np.mean(scores)) / 2)
 
         return [1 if s <= self.threshhold else 0 for s in scores]
 
