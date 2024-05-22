@@ -3,6 +3,7 @@ import joblib
 import yake
 import pandas as pd
 from sklearn.svm import OneClassSVM
+from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.neighbors import NearestNeighbors
 from nltk.stem import WordNetLemmatizer
@@ -17,6 +18,35 @@ from time import time
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
+
+
+class OutlierEnsemble(BaseEstimator, ClassifierMixin):
+    def __init__(self):
+        self.knn_model = NearestNeighbors(n_neighbors=8)
+        self.svm_model = OneClassSVM()
+        self.mean = 0
+
+    def fit(self, X, y=None):
+        # Fit both models on the training data
+        self.knn_model.fit(X)
+        self.svm_model.fit(X)
+        return self
+
+    def predict(self, X, learn=False):
+        # Predict outlier scores using both models
+        knn_scores = -self.knn_model.kneighbors(X)[0].max(axis=1)
+        svm_scores = self.svm_model.decision_function(X)
+
+        # Combine scores using simple voting
+        combined_scores = np.mean([knn_scores, svm_scores], axis=0)
+
+        if learn:
+            self.mean = np.mean(combined_scores)
+
+        # Convert scores to binary predictions (1 for outliers, 0 for inliers)
+        predictions = [
+            1 if abs(c) <= self.mean else 0 for c in combined_scores]
+        return predictions
 
 
 class ImpactDetectorModel:
@@ -49,6 +79,7 @@ class ImpactDetectorModel:
         self.accuracy = 0
         self.model = None
         self.status = self.STATUS_INIT
+        self.avg_distance = 0
 
     def load_data(self):
         data = self.data_loader_func()
@@ -78,7 +109,7 @@ class ImpactDetectorModel:
         return ' '.join(values)
 
     def get_train_model(self):
-        return NearestNeighbors(n_neighbors=2)
+        return OutlierEnsemble()
 
     def parallel_preprocess(self, data):
 
@@ -160,10 +191,9 @@ class ImpactDetectorModel:
         data_items = [item for _, item in self.test_data.iterrows()]
         processed_query_data = self.parallel_preprocess(data_items)
         query_matrix = self.VECTORIZER.transform(processed_query_data)
-        distances, _ = self.model.kneighbors(query_matrix)
-
+        predictions = self.model.predict(query_matrix, learn=True)
         self.accuracy = accuracy_score(
-            [True for _ in data_items], self.predictions(distances))
+            [True for _ in data_items], predictions)
         print(f'---- {self.name} accuracy is {self.accuracy} ------')
 
     def predict(self, query):
@@ -172,9 +202,9 @@ class ImpactDetectorModel:
 
         query_data = pd.DataFrame(query)
         data_items = [item for _, item in query_data.iterrows()]
+        print(data_items)
         processed_query_data = self.parallel_preprocess(data_items)
 
         query_matrix = self.VECTORIZER.transform(processed_query_data)
-        distances, _ = self.model.kneighbors(query_matrix)
-
-        return self.predictions(distances)
+        predictions = self.model.predict(query_matrix)
+        return predictions
