@@ -40,6 +40,32 @@ def verify_orgs():
     })
 
 
+@bp.route('/jobs/one', methods=['POST'])
+def verify_jobs_one():
+    if impact_job_detector.status != impact_job_detector.STATUS_TRAINED:
+        return jsonify({"error": "impact detector is not ready to use"}), 400
+    if not request.is_json:
+        return jsonify({"error": "Missing JSON in request"}), 400
+    data = request.get_json()
+    query = data.get('description', '')
+    return jsonify({
+        'result': True if impact_job_detector.predict(query)[0] else False
+    })
+
+
+@bp.route('/orgs/one', methods=['POST'])
+def verify_orgs_one():
+    if impact_org_detector.status != impact_org_detector.STATUS_TRAINED:
+        return jsonify({"error": "impact detector is not ready to use"}), 400
+    if not request.is_json:
+        return jsonify({"error": "Missing JSON in request"}), 400
+    data = request.get_json()
+    query = data.get('description', '')
+    return jsonify({
+        'result': True if impact_org_detector.predict(query)[0] else False
+    })
+
+
 @bp.route('/verify.html', methods=['POST'])
 def verify_html():
     try:
