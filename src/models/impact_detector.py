@@ -117,11 +117,17 @@ class ImpactDetectorModel:
             f'Fetched {len(data)} of total data for ({len(self.data)}, {len(self.test_data)}) {self.name} ')
 
     def clean_text(self, text):
-        text = re.sub('<.*?>', '', text)  # Remove HTML tags
-        text = re.sub('[^\w\s]', '', text)  # Remove punctuation
+        text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
+        text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+        text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE) # Remove URL's
+        text = re.sub(r'\d+', '', text) # Remove numbers
         text = text.lower()  # Convert to lowercase
-        text = re.sub(r"_+", " ", text)
-        return text
+        text = re.sub(r'\s+', ' ', text).strip() # Remove extra white spaces
+        words = nltk.word_tokenize(text) # Tokenize text
+        words = [word for word in words if word not in self.stop_words] # Remove stopwords
+        words = [self.spellchecker.correction(word) for word in words] # Correct misspellings
+        words = [self.lemmatizer.lemmatize(word) for word in words] # Lemmatize words
+        return ' '.join(words)
 
     def obj_to_text(self, obj):
         values = [
@@ -158,11 +164,17 @@ class ImpactDetectorModel:
                 ticker.lock = False
 
         def clean_text(text):
-            text = re.sub('<.*?>', '', text)  # Remove HTML tags
-            text = re.sub('[^\w\s]', '', text)  # Remove punctuation
+            text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
+            text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
+            text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE) # Remove URL's
+            text = re.sub(r'\d+', '', text) # Remove numbers
             text = text.lower()  # Convert to lowercase
-            text = re.sub(r"_+", " ", text)
-            return text
+            text = re.sub(r"_+", " ", text) # Remove extra white spaces
+            words = nltk.word_tokenize(text) # Remove stopwords
+            words = [word for word in words if word not in self.stop_words] # Correct misspellings
+            words = [self.spellchecker.correction(word) for word in words] # Lemmatize words
+            words = [self.lemmatizer.lemmatize(word) for word in words]
+            return ' '.join(words)
 
         def preprocess_text(text, index):
             text = clean_text(text)
