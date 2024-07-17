@@ -122,12 +122,8 @@ class ImpactDetectorModel:
         text = re.sub(r'http\S+|www\S+|https\S+', '', text, flags=re.MULTILINE) # Remove URL's
         text = re.sub(r'\d+', '', text) # Remove numbers
         text = text.lower()  # Convert to lowercase
-        text = re.sub(r'\s+', ' ', text).strip() # Remove extra white spaces
-        words = nltk.word_tokenize(text) # Tokenize text
-        words = [word for word in words if word not in self.stop_words] # Remove stopwords
-        words = [self.spellchecker.correction(word) for word in words] # Correct misspellings
-        words = [self.lemmatizer.lemmatize(word) for word in words] # Lemmatize words
-        return ' '.join(words)
+        text = re.sub(r"_+", " ", text)
+        return text
 
     def obj_to_text(self, obj):
         values = [
