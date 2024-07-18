@@ -14,6 +14,8 @@ from nltk.corpus import stopwords
 import nltk
 import numpy as np
 from time import time
+from typing import List, Tuple
+from scipy.spatial import KDTree
 
 nltk.download('punkt')
 nltk.download('stopwords')
@@ -35,16 +37,20 @@ class OutlierEnsemble(BaseEstimator, ClassifierMixin):
         self.svm_model.fit(X)
         return self
 
-    def max_distance_between_points(self, points):
-        max_distance = 0
+    def max_distance_between_points(self, points: np.ndarray) -> Tuple[np.ndarray, float]:
+        tree = KDTree(points)
+        self.max_distance = 0
         pair = ()
-        num_points = len(points)
-        for i in range(num_points):
-            for j in range(i + 1, num_points):
-                distance = np.linalg.norm(points[i] - points[j])
-                if distance > max_distance:
-                    max_distance = distance
-                    pair = (points[i], points[j])
+        
+        for point in points:
+            distances, indexes = tree.query(point, k=len(points))
+            farthest_distance = distances[-1]
+            farthest_point = points[indexes[-1]]
+            
+            if farthest_distance > max_distance:
+                max_distance = farthest_distance
+                pair = (point, farthest_point)
+        
         return pair, max_distance
 
     def predict(self, X, learn=False):
@@ -162,20 +168,8 @@ class ImpactDetectorModel:
                 print(f'{name} -> {p:.2f}% of text proccess done')
                 ticker.lock = False
 
-        def clean_text(self, text):
-            text = text.lower()  # Convert to lowercase
-            text = re.sub(r'<.*?>', '', text)  # Remove HTML tags
-            text = re.sub(r'[^\w\s]', '', text)  # Remove punctuation
-            text = re.sub(r'http\S+|www\S+|https\S+', '', text)  # Remove URLs
-            text = re.sub(r'\d+', '', text)  # Remove numbers
-            text = re.sub(r'\s+', ' ', text)  # Remove extra whitespace
-            words = nltk.word_tokenize(text)  # Tokenize text
-            words = [word for word in words if word not in self.STOP_WORDS]  # Remove stopwords
-            words = [self.LEMMATIZER.lemmatize(word) for word in words]  # Lemmatize words
-            return ' '.join(words)
-
         def preprocess_text(text, index):
-            text = clean_text(text)
+            text = ImpactDetectorModel.clean_text(text)            
             keywords = YAKE.extract_keywords(text)
             result = ' '.join([k[0] for k in keywords])
             words = set(result.split())
