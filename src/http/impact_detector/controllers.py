@@ -40,7 +40,7 @@ def verify_orgs():
     })
 
 
-@bp.route('/jobs/one', methods=['POST'])
+@bp.route('/job', methods=['POST'])
 def verify_jobs_one():
     if impact_job_detector.status != impact_job_detector.STATUS_TRAINED:
         return jsonify({"error": "impact detector is not ready to use"}), 400
@@ -53,7 +53,7 @@ def verify_jobs_one():
     })
 
 
-@bp.route('/orgs/one', methods=['POST'])
+@bp.route('/org', methods=['POST'])
 def verify_orgs_one():
     if impact_org_detector.status != impact_org_detector.STATUS_TRAINED:
         return jsonify({"error": "impact detector is not ready to use"}), 400
