@@ -147,6 +147,8 @@ class ImpactDetectorModel:
         return OutlierEnsemble()
 
     def parallel_preprocess(self, data):
+        inprocess_yake = yake.KeywordExtractor(
+            n=3, dedupLim=0.9, top=50, features=None)
         name = self.name
 
         class Tick:
@@ -176,7 +178,7 @@ class ImpactDetectorModel:
 
         def preprocess_text(text, index):
             text = clean_text(text)
-            keywords = self.YAKE.extract_keywords(text)
+            keywords = inprocess_yake.extract_keywords(text)
             result = ' '.join([k[0] for k in keywords])
             words = set(result.split())
             percentage(index)
