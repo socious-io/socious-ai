@@ -28,7 +28,7 @@ impact_keywords = [
     "education and literacy", "educational outreach", "literacy programs", "STEM education", "lifelong learning",
     "humanitarian aid", "disaster relief", "refugee support", "crisis intervention", "food security",
     "innovation and technology", "social innovation", "tech for good", "digital inclusion", "smart cities",
-    "governance and policy", "advocacy and policy"
+    "governance and policy", "advocacy and policy", "social impact"
 ]
 
 
@@ -94,7 +94,7 @@ class ImpactDetectorModel:
     TEST_DATA_SELECT_PERCENT = 10
     STOP_WORDS = set(stopwords.words('english'))
     LEMMATIZER = WordNetLemmatizer()
-
+    YAKE = yake.KeywordExtractor(n=3, dedupLim=0.9, top=50, features=None)
     VECTORIZER = TfidfVectorizer()
 
     @property
@@ -147,8 +147,6 @@ class ImpactDetectorModel:
         return OutlierEnsemble()
 
     def parallel_preprocess(self, data):
-
-        YAKE = yake.KeywordExtractor(n=3, dedupLim=0.9, top=50, features=None)
         name = self.name
 
         class Tick:
@@ -178,7 +176,7 @@ class ImpactDetectorModel:
 
         def preprocess_text(text, index):
             text = clean_text(text)
-            keywords = YAKE.extract_keywords(text)
+            keywords = self.YAKE.extract_keywords(text)
             result = ' '.join([k[0] for k in keywords])
             words = set(result.split())
             percentage(index)
@@ -232,10 +230,16 @@ class ImpactDetectorModel:
         print(f'---- {self.name} accuracy is {self.accuracy} ------')
 
     def fuzzy_match(self, description):
-        ratios = [fuzz.ratio(description.lower(), keyword.lower()
-                             ) / 100.0 for keyword in impact_keywords]
-        median_ratio = np.median(ratios)
-        return median_ratio
+        keywords = self.YAKE.extract_keywords(description)
+        ratios = []
+        keywords = [k[0] for k in keywords]
+        for keyword in keywords:
+            keyword_ratios = [fuzz.ratio(keyword.lower(), impact_keyword.lower(
+            )) / 100.0 for impact_keyword in impact_keywords]
+            if keyword_ratios:
+                max_ratio = max(keyword_ratios)
+                ratios.append(max_ratio)
+        return np.max(ratios)
 
     def predict(self, query):
         if not isinstance(query, (list, tuple, np.ndarray)):
@@ -249,5 +253,5 @@ class ImpactDetectorModel:
         predictions = self.model.predict(query_matrix)
         results = []
         for i, p in enumerate(predictions):
-            results.append(self.fuzzy_match(query[i]) > 50 or p)
+            results.append(self.fuzzy_match(query[i]) > 0.5 or p)
         return results
