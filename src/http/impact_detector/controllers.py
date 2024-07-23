@@ -48,6 +48,7 @@ def verify_jobs_one():
         return jsonify({"error": "Missing JSON in request"}), 400
     data = request.get_json()
     query = data.get('description', '')
+    print(f'request body {query}')
     return jsonify({
         'result': True if impact_job_detector.predict(query)[0] else False
     })
@@ -61,6 +62,7 @@ def verify_orgs_one():
         return jsonify({"error": "Missing JSON in request"}), 400
     data = request.get_json()
     query = data.get('description', '')
+    print(f'request body {data}')
     return jsonify({
         'result': True if impact_org_detector.predict(query)[0] else False
     })
