@@ -14,10 +14,22 @@ from nltk.corpus import stopwords
 import nltk
 import numpy as np
 from time import time
+from fuzzywuzzy import fuzz
 
 nltk.download('punkt')
 nltk.download('stopwords')
 nltk.download('wordnet')
+
+impact_keywords = [
+    "sustainability", "sustainable development", "environmental protection", "green energy",
+    "social impact", "community development", "social justice", "equity and inclusion", "human rights",
+    "economic development", "poverty alleviation", "economic empowerment", "microfinance", "fair trade",
+    "health and well-being", "public health", "mental health support", "healthcare access", "wellness programs",
+    "education and literacy", "educational outreach", "literacy programs", "STEM education", "lifelong learning",
+    "humanitarian aid", "disaster relief", "refugee support", "crisis intervention", "food security",
+    "innovation and technology", "social innovation", "tech for good", "digital inclusion", "smart cities",
+    "governance and policy", "advocacy and policy"
+]
 
 
 class OutlierEnsemble(BaseEstimator, ClassifierMixin):
@@ -219,15 +231,23 @@ class ImpactDetectorModel:
             [True for _ in data_items], predictions)
         print(f'---- {self.name} accuracy is {self.accuracy} ------')
 
+    def fuzzy_match(self, description):
+        ratios = [fuzz.ratio(description.lower(), keyword.lower()
+                             ) / 100.0 for keyword in impact_keywords]
+        median_ratio = np.median(ratios)
+        return median_ratio
+
     def predict(self, query):
         if not isinstance(query, (list, tuple, np.ndarray)):
             query = [query]
 
         query_data = pd.DataFrame(query)
         data_items = [item for _, item in query_data.iterrows()]
-        print(data_items)
         processed_query_data = self.parallel_preprocess(data_items)
 
         query_matrix = self.VECTORIZER.transform(processed_query_data)
         predictions = self.model.predict(query_matrix)
-        return predictions
+        results = []
+        for i, p in enumerate(predictions):
+            results.append(self.fuzzy_match(query[i]) > 50 or p)
+        return results
