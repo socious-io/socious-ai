@@ -50,7 +50,7 @@ def verify_jobs_one():
     query = data.get('description', '')
     print(f'request body {query}')
     return jsonify({
-        'result': True if impact_job_detector.predict(query)[0] else False
+        'impact': True if impact_job_detector.predict(query)[0] else False
     })
 
 
@@ -64,7 +64,7 @@ def verify_orgs_one():
     query = data.get('description', '')
     print(f'request body {data}')
     return jsonify({
-        'result': True if impact_org_detector.predict(query)[0] else False
+        'impact': True if impact_org_detector.predict(query)[0] else False
     })
 
 
