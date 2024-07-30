@@ -255,5 +255,5 @@ class ImpactDetectorModel:
         predictions = self.model.predict(query_matrix)
         results = []
         for i, p in enumerate(predictions):
-            results.append(self.fuzzy_match(query[i]) > 0.7 or p)
+            results.append(self.fuzzy_match(query[i]) > 0.7)
         return results
