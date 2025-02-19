@@ -8,7 +8,7 @@ def jobs():
     return DB.fetch_lazy('''
   SELECT p.id, p.title, p.description, p.country, org.name as org_name, org.description as org_description, p.causes_tags 
   FROM projects p join organizations org on org.id=p.identity_id
-  WHERE org.name IS NOT NULL OR org.name <> '' ORDER BY p.created_at DESC
+  WHERE (org.name IS NOT NULL OR org.name <> '') AND (expires_at IS NULL OR expires_at > NOW()) ORDER BY p.created_at DESC
 ''')
 
 
