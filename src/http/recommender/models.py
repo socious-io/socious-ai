@@ -28,6 +28,3 @@ def orgs():
 jobs_recommender = JobRecommender(jobs)
 # talents_recommender = TalentRecommender(users)
 # orgs_recommender = OrgRecommender(orgs)
-
-talents_recommender = {}
-orgs_recommender = {}

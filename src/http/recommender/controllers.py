@@ -1,7 +1,7 @@
 from flask import Blueprint, request, jsonify
 from src.config import config
 import threading
-from .models import jobs_recommender, talents_recommender, orgs_recommender
+from .models import jobs_recommender
 
 bp = Blueprint('recommender', __name__, url_prefix='/recommender')
 
