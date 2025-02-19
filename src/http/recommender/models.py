@@ -12,7 +12,6 @@ def jobs():
 ''')
 
 
-""" 
 def users():
     return DB.fetch_lazy('''
   SELECT id, bio, mission, skills, social_causes, country FROM users ORDER BY created_at DESC
@@ -22,9 +21,9 @@ def users():
 def orgs():
     return DB.fetch_lazy('''
   SELECT id, bio, description, culture, social_causes, country FROM organizations ORDER BY created_at DESC
-''') """
+''')
 
 
 jobs_recommender = JobRecommender(jobs)
-# talents_recommender = TalentRecommender(users)
-# orgs_recommender = OrgRecommender(orgs)
+talents_recommender = TalentRecommender(users)
+orgs_recommender = OrgRecommender(orgs)
